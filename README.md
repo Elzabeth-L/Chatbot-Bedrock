@@ -234,6 +234,11 @@ OIDC and never uses stored AWS access keys. Workflows reference secrets only thr
 GitHub’s secret context, so token values are masked and are not written to command
 arguments, artifacts, images, or summaries.
 
+On non-publishing feature-branch runs, Snyk and SonarCloud emit a notice and skip
+when their configuration is absent, while tests, Ruff, CodeQL, Trivy, and available
+GitHub-native checks still run. A default-branch or manual publication run fails
+closed unless both external security integrations are fully configured.
+
 The repository includes a non-secret `environments/demo.tfvars`. Select another
 committed non-secret environment file with `TFVARS_FILE` when needed. This project
 has no application secrets.

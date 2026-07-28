@@ -95,9 +95,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Require Snyk configuration
+      - name: Detect Snyk configuration
+        id: snyk_config
         shell: bash
-        run: test -n "${SNYK_TOKEN}" || { echo "Required SNYK_TOKEN secret is not configured." >&2; exit 1; }
+        run: |
+          if [[ -n "${SNYK_TOKEN}" ]]; then
+            echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "enabled=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::Snyk scans are skipped on this non-publishing run because SNYK_TOKEN is not configured."
+          fi
 
       - name: GitHub dependency review
         if: github.event_name == 'pull_request'
@@ -105,9 +112,12 @@ jobs:
         with:
           fail-on-severity: high
 
-      - uses: snyk/actions/setup@v1.0.0
+      - id: snyk_setup
+        if: steps.snyk_config.outputs.enabled == 'true'
+        uses: snyk/actions/setup@v1.0.0
 
       - name: Snyk Open Source SCA
+        if: steps.snyk_setup.outcome == 'success'
         id: snyk_sca
         run: >-
           snyk test
@@ -124,7 +134,7 @@ jobs:
           category: snyk-open-source
 
       - name: Snyk Code SAST
-        if: always()
+        if: always() && steps.snyk_setup.outcome == 'success'
         run: >-
           snyk code test
           --severity-threshold=high
@@ -136,6 +146,18 @@ jobs:
         with:
           sarif_file: snyk-code.sarif
           category: snyk-code
+
+      - name: Require Snyk for publication
+        if: >-
+          always() &&
+          steps.snyk_config.outputs.enabled != 'true' &&
+          (github.event_name == 'workflow_dispatch' ||
+           (github.event_name == 'push' &&
+            github.ref == format('refs/heads/{0}', vars.DEFAULT_BRANCH)))
+        shell: bash
+        run: |
+          echo "SNYK_TOKEN must be configured before an image can be published." >&2
+          exit 1
 
   sonarcloud:
     name: SonarCloud analysis
@@ -149,6 +171,8 @@ jobs:
       pull-requests: read
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -158,22 +182,40 @@ jobs:
         with:
           name: python-coverage-${{ github.sha }}
 
-      - name: Require SonarCloud configuration
+      - name: Detect SonarCloud configuration
+        id: sonar_config
         shell: bash
         run: |
-          test -n "${SONAR_TOKEN}" || { echo "Required SONAR_TOKEN secret is not configured." >&2; exit 1; }
-          test -n "${{ vars.SONAR_ORGANIZATION }}" || { echo "Required SONAR_ORGANIZATION variable is not configured." >&2; exit 1; }
-          test -n "${{ vars.SONAR_PROJECT_KEY }}" || { echo "Required SONAR_PROJECT_KEY variable is not configured." >&2; exit 1; }
+          if [[ -n "${SONAR_TOKEN}" && -n "${SONAR_ORGANIZATION}" && -n "${SONAR_PROJECT_KEY}" ]]; then
+            echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "enabled=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::SonarCloud is skipped on this non-publishing run because its secret or variables are not configured."
+          fi
 
-      - uses: SonarSource/sonarqube-scan-action@v7
+      - if: steps.sonar_config.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@v7
         with:
           args: >-
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
 
-      - uses: SonarSource/sonarqube-quality-gate-action@v1
+      - if: steps.sonar_config.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-quality-gate-action@v1
         with:
           pollingTimeoutSec: 300
+
+      - name: Require SonarCloud for publication
+        if: >-
+          always() &&
+          steps.sonar_config.outputs.enabled != 'true' &&
+          (github.event_name == 'workflow_dispatch' ||
+           (github.event_name == 'push' &&
+            github.ref == format('refs/heads/{0}', vars.DEFAULT_BRANCH)))
+        shell: bash
+        run: |
+          echo "SONAR_TOKEN, SONAR_ORGANIZATION, and SONAR_PROJECT_KEY must be configured before publication." >&2
+          exit 1
 
   container-scan:
     name: Scan ${{ matrix.component }} image
@@ -231,7 +273,7 @@ jobs:
           category: trivy-${{ matrix.component }}
 
       - name: Snyk container scan
-        if: always()
+        if: always() && env.SNYK_TOKEN != ''
         uses: snyk/actions/docker@v1.0.0
         with:
           image: local/${{ matrix.component }}:${{ github.sha }}
