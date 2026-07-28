@@ -1,5 +1,8 @@
 FROM nginxinc/nginx-unprivileged:1.29-alpine
 
+USER 0
+RUN apk upgrade --no-cache
+
 COPY --chown=101:101 index.html styles.css app.js /usr/share/nginx/html/
 COPY --chown=101:101 config.js.template /etc/nginx/templates/config.js.template
 COPY --chown=101:101 nginx.conf /etc/nginx/conf.d/default.conf
