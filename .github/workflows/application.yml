@@ -256,7 +256,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.component }}
 
       - name: Trivy container scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: local/${{ matrix.component }}:${{ github.sha }}
           format: sarif
