@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="description" content="A small session-based Amazon Bedrock RAG chatbot">
+    <title>Bedrock Docs Chat</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <div>
+          <p class="eyebrow">Amazon Bedrock Knowledge Base</p>
+          <h1>Docs Chat</h1>
+        </div>
+        <button id="new-chat" class="secondary" type="button">New chat</button>
+      </header>
+      <section id="conversation" class="conversation" aria-live="polite">
+        <div class="empty">
+          <h2>Ask the documentation</h2>
+          <p>Answers are grounded in the small technical corpus deployed with this demo.</p>
+        </div>
+      </section>
+      <p id="status" class="status" role="status"></p>
+      <form id="chat-form">
+        <label class="sr-only" for="message">Question</label>
+        <textarea id="message" maxlength="2000" rows="2"
+          placeholder="Ask a question…" required></textarea>
+        <button id="send" type="submit">Send</button>
+      </form>
+    </main>
+    <script src="config.js" defer></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>

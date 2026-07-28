@@ -1,0 +1,173 @@
+name: Terraform plan and package
+description: Validate, scan, plan, and package an immutable Terraform plan artifact.
+
+inputs:
+  working-directory:
+    description: Terraform root directory
+    required: true
+  terraform-version:
+    description: Exact Terraform CLI version
+    required: true
+  backend-bucket:
+    description: Existing remote-state bucket
+    required: true
+  backend-key:
+    description: Remote-state object key
+    required: true
+  aws-region:
+    description: Backend and provider Region
+    required: true
+  tfvars-file:
+    description: Repository-relative variable file
+    required: true
+  mode:
+    description: apply or destroy
+    required: true
+  source-head-repository:
+    description: Repository that supplied the workflow source
+    required: true
+
+outputs:
+  artifact_name:
+    description: Uploaded immutable plan artifact name
+    value: ${{ steps.package.outputs.artifact_name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate non-sensitive configuration
+      shell: bash
+      env:
+        BACKEND_BUCKET: ${{ inputs.backend-bucket }}
+        BACKEND_KEY: ${{ inputs.backend-key }}
+        AWS_REGION_VALUE: ${{ inputs.aws-region }}
+        TFVARS_FILE: ${{ inputs.tfvars-file }}
+        PLAN_MODE: ${{ inputs.mode }}
+      run: |
+        set -euo pipefail
+        test -n "${BACKEND_BUCKET}" || { echo "TF_BACKEND_BUCKET GitHub Variable is required." >&2; exit 1; }
+        test -n "${BACKEND_KEY}" || { echo "TF_STATE_KEY GitHub Variable is required." >&2; exit 1; }
+        test -n "${AWS_REGION_VALUE}" || { echo "AWS_REGION GitHub Variable is required." >&2; exit 1; }
+        test -f "${TFVARS_FILE}" || { echo "Configured TFVARS_FILE does not exist." >&2; exit 1; }
+        [[ "${PLAN_MODE}" == "apply" || "${PLAN_MODE}" == "destroy" ]] || {
+          echo "Plan mode must be apply or destroy." >&2
+          exit 1
+        }
+
+    - name: Create partial backend configuration
+      shell: bash
+      env:
+        BACKEND_BUCKET: ${{ inputs.backend-bucket }}
+        BACKEND_KEY: ${{ inputs.backend-key }}
+        AWS_REGION_VALUE: ${{ inputs.aws-region }}
+      run: |
+        set -euo pipefail
+        umask 077
+        {
+          printf 'bucket       = "%s"\n' "${BACKEND_BUCKET}"
+          printf 'key          = "%s"\n' "${BACKEND_KEY}"
+          printf 'region       = "%s"\n' "${AWS_REGION_VALUE}"
+          printf 'encrypt      = true\n'
+          printf 'use_lockfile = true\n'
+        } > backend.hcl
+
+    - name: Terraform formatting
+      shell: bash
+      run: terraform fmt -check -recursive
+
+    - name: Initialize and validate
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        terraform init -input=false -backend-config=../backend.hcl
+        terraform validate
+
+    - name: Trivy Terraform configuration scan
+      uses: aquasecurity/trivy-action@0.33.1
+      with:
+        scan-type: config
+        scan-ref: ${{ inputs.working-directory }}
+        severity: HIGH,CRITICAL
+        exit-code: "1"
+
+    - name: Create binary and readable plan
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        TFVARS_FILE: ${{ inputs.tfvars-file }}
+        PLAN_MODE: ${{ inputs.mode }}
+      run: |
+        set -euo pipefail
+        destroy_flag=()
+        [[ "${PLAN_MODE}" == "destroy" ]] && destroy_flag=(-destroy)
+        terraform plan "${destroy_flag[@]}" -input=false -lock-timeout=5m \
+          -var-file="../${TFVARS_FILE}" -out=plan.tfplan
+        terraform show -no-color plan.tfplan > plan.txt
+        tail -n 120 plan.txt > plan-comment.txt
+
+    - name: Create immutable metadata and package
+      id: package
+      shell: bash
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        TERRAFORM_VERSION: ${{ inputs.terraform-version }}
+        BACKEND_BUCKET: ${{ inputs.backend-bucket }}
+        BACKEND_KEY: ${{ inputs.backend-key }}
+        AWS_REGION_VALUE: ${{ inputs.aws-region }}
+        TFVARS_FILE: ${{ inputs.tfvars-file }}
+        PLAN_MODE: ${{ inputs.mode }}
+        SOURCE_HEAD_REPOSITORY: ${{ inputs.source-head-repository }}
+      run: |
+        set -euo pipefail
+        plan_file="${WORKING_DIRECTORY}/plan.tfplan"
+        lock_file="${WORKING_DIRECTORY}/.terraform.lock.hcl"
+        plan_sha="$(sha256sum "${plan_file}" | awk '{print $1}')"
+        lock_sha="$(sha256sum "${lock_file}" | awk '{print $1}')"
+        backend_identity="$(printf '%s/%s/%s' "${BACKEND_BUCKET}" "${BACKEND_KEY}" "${AWS_REGION_VALUE}" | sha256sum | awk '{print $1}')"
+        tfvars_identity="$(sha256sum "${TFVARS_FILE}" | awk '{print $1}')"
+        artifact_name="terraform-${PLAN_MODE}-${GITHUB_RUN_ID}-${GITHUB_SHA}"
+        created_epoch="$(date -u +%s)"
+
+        mkdir -p plan-artifact
+        cp "${plan_file}" "${WORKING_DIRECTORY}/plan.txt" "${lock_file}" plan-artifact/
+        {
+          printf 'METADATA_VERSION=1\n'
+          printf 'PLAN_MODE=%s\n' "${PLAN_MODE}"
+          printf 'PLAN_SHA256=%s\n' "${plan_sha}"
+          printf 'COMMIT_SHA=%s\n' "${GITHUB_SHA}"
+          printf 'SOURCE_RUN_ID=%s\n' "${GITHUB_RUN_ID}"
+          printf 'SOURCE_RUN_ATTEMPT=%s\n' "${GITHUB_RUN_ATTEMPT}"
+          printf 'SOURCE_EVENT=%s\n' "${GITHUB_EVENT_NAME}"
+          printf 'SOURCE_REPOSITORY=%s\n' "${GITHUB_REPOSITORY}"
+          printf 'SOURCE_REF=%s\n' "${GITHUB_REF}"
+          printf 'SOURCE_HEAD_REPOSITORY=%s\n' "${SOURCE_HEAD_REPOSITORY}"
+          printf 'TERRAFORM_VERSION=%s\n' "${TERRAFORM_VERSION}"
+          printf 'RUNNER_OS=%s\n' "${RUNNER_OS}"
+          printf 'RUNNER_ARCH=%s\n' "${RUNNER_ARCH}"
+          printf 'WORKING_DIRECTORY=%s\n' "${WORKING_DIRECTORY}"
+          printf 'LOCKFILE_SHA256=%s\n' "${lock_sha}"
+          printf 'BACKEND_IDENTITY=%s\n' "${backend_identity}"
+          printf 'TFVARS_IDENTITY=%s\n' "${tfvars_identity}"
+          printf 'CREATED_EPOCH=%s\n' "${created_epoch}"
+          printf 'ARTIFACT_TRUSTED=true\n'
+        } > plan-artifact/plan-metadata.env
+
+        echo "artifact_name=${artifact_name}" >> "${GITHUB_OUTPUT}"
+        {
+          echo "## Terraform ${PLAN_MODE} plan"
+          echo
+          echo "Artifact: \`${artifact_name}\`"
+          echo
+          echo '```text'
+          tail -n 120 "${WORKING_DIRECTORY}/plan.txt"
+          echo '```'
+        } >> "${GITHUB_STEP_SUMMARY}"
+
+    - name: Upload immutable reviewed-plan artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.package.outputs.artifact_name }}
+        path: plan-artifact/
+        retention-days: 7
+        if-no-files-found: error
