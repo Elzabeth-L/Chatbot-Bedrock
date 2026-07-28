@@ -1,6 +1,6 @@
 FROM public.ecr.aws/lambda/python:3.13
 
-RUN dnf upgrade -y \
+RUN dnf -y --releasever=latest update \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
