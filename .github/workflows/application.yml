@@ -187,8 +187,5 @@ jobs:
           args: >-
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-
-      - if: steps.sonar_config.outputs.enabled == 'true'
-        uses: SonarSource/sonarqube-quality-gate-action@v1
-        with:
-          pollingTimeoutSec: 300
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
