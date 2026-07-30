@@ -14,15 +14,12 @@
 |   |-- terraform-basics.md
 |   `-- kubernetes-basics.md
 |-- frontend/
-|   |-- Dockerfile
-|   |-- nginx.conf
-|   |-- config.js.template
+|   |-- config.js.tftpl
 |   |-- index.html
 |   |-- styles.css
 |   `-- app.js
 |-- lambdas/
 |   |-- chat/
-|   |   |-- Dockerfile
 |   |   |-- handler.py
 |   |   `-- requirements.txt
 |   `-- ingestion/

@@ -1,4 +1,4 @@
-name: Application CI and Images
+name: Application CI
 
 on:
   pull_request:
@@ -103,7 +103,7 @@ jobs:
             echo "enabled=true" >> "${GITHUB_OUTPUT}"
           else
             echo "enabled=false" >> "${GITHUB_OUTPUT}"
-            echo "::notice::Snyk scans are skipped on this non-publishing run because SNYK_TOKEN is not configured."
+            echo "::notice::Snyk scans are skipped because SNYK_TOKEN is not configured."
           fi
 
       - name: GitHub dependency review
@@ -147,18 +147,6 @@ jobs:
           sarif_file: snyk-code.sarif
           category: snyk-code
 
-      - name: Require Snyk for publication
-        if: >-
-          always() &&
-          steps.snyk_config.outputs.enabled != 'true' &&
-          (github.event_name == 'workflow_dispatch' ||
-           (github.event_name == 'push' &&
-            github.ref == format('refs/heads/{0}', vars.DEFAULT_BRANCH)))
-        shell: bash
-        run: |
-          echo "SNYK_TOKEN must be configured before an image can be published." >&2
-          exit 1
-
   sonarcloud:
     name: SonarCloud analysis
     if: >-
@@ -190,7 +178,7 @@ jobs:
             echo "enabled=true" >> "${GITHUB_OUTPUT}"
           else
             echo "enabled=false" >> "${GITHUB_OUTPUT}"
-            echo "::notice::SonarCloud is skipped on this non-publishing run because its secret or variables are not configured."
+            echo "::notice::SonarCloud is skipped because its secret or variables are not configured."
           fi
 
       - if: steps.sonar_config.outputs.enabled == 'true'
@@ -204,185 +192,3 @@ jobs:
         uses: SonarSource/sonarqube-quality-gate-action@v1
         with:
           pollingTimeoutSec: 300
-
-      - name: Require SonarCloud for publication
-        if: >-
-          always() &&
-          steps.sonar_config.outputs.enabled != 'true' &&
-          (github.event_name == 'workflow_dispatch' ||
-           (github.event_name == 'push' &&
-            github.ref == format('refs/heads/{0}', vars.DEFAULT_BRANCH)))
-        shell: bash
-        run: |
-          echo "SONAR_TOKEN, SONAR_ORGANIZATION, and SONAR_PROJECT_KEY must be configured before publication." >&2
-          exit 1
-
-  container-scan:
-    name: Scan ${{ matrix.component }} image
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
-    needs: [test, codeql, supply-chain, sonarcloud]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    env:
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - component: frontend
-            context: frontend
-            dockerfile: frontend/Dockerfile
-          - component: backend
-            context: lambdas/chat
-            dockerfile: lambdas/chat/Dockerfile
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build local scan image
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          load: true
-          push: false
-          tags: local/${{ matrix.component }}:${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.component }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
-
-      - name: Trivy container scan
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: local/${{ matrix.component }}:${{ github.sha }}
-          format: sarif
-          output: trivy-${{ matrix.component }}.sarif
-          severity: HIGH,CRITICAL
-          limit-severities-for-sarif: true
-          ignore-unfixed: true
-          exit-code: "1"
-
-      - name: Upload Trivy SARIF
-        if: always() && hashFiles(format('trivy-{0}.sarif', matrix.component)) != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: trivy-${{ matrix.component }}.sarif
-          category: trivy-${{ matrix.component }}
-
-      - name: Snyk container scan
-        if: always() && env.SNYK_TOKEN != ''
-        uses: snyk/actions/docker@v1.0.0
-        with:
-          image: local/${{ matrix.component }}:${{ github.sha }}
-          args: >-
-            --file=${{ matrix.dockerfile }}
-            --severity-threshold=high
-            --sarif-file-output=snyk-${{ matrix.component }}.sarif
-
-      - name: Upload Snyk container SARIF
-        if: always() && hashFiles(format('snyk-{0}.sarif', matrix.component)) != ''
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: snyk-${{ matrix.component }}.sarif
-          category: snyk-container-${{ matrix.component }}
-
-      - name: Export exact scanned image
-        if: >-
-          success() &&
-          (github.event_name == 'workflow_dispatch' ||
-           (github.event_name == 'push' &&
-            github.ref == format('refs/heads/{0}', vars.DEFAULT_BRANCH)))
-        run: docker save --output scanned-${{ matrix.component }}.tar local/${{ matrix.component }}:${{ github.sha }}
-
-      - name: Preserve exact scanned image
-        if: >-
-          success() &&
-          (github.event_name == 'workflow_dispatch' ||
-           (github.event_name == 'push' &&
-            github.ref == format('refs/heads/{0}', vars.DEFAULT_BRANCH)))
-        uses: actions/upload-artifact@v4
-        with:
-          name: scanned-${{ matrix.component }}-${{ github.sha }}
-          path: scanned-${{ matrix.component }}.tar
-          retention-days: 1
-          if-no-files-found: error
-
-  publish:
-    name: Publish ${{ matrix.component }} image
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' &&
-       github.ref == format('refs/heads/{0}', vars.DEFAULT_BRANCH))
-    needs: container-scan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - component: frontend
-            context: frontend
-            dockerfile: frontend/Dockerfile
-          - component: backend
-            context: lambdas/chat
-            dockerfile: lambdas/chat/Dockerfile
-    env:
-      IMAGE_NAME: ${{ matrix.component == 'frontend' && vars.GHCR_FRONTEND_IMAGE || vars.GHCR_BACKEND_IMAGE }}
-    steps:
-      - name: Validate image destination
-        shell: bash
-        run: |
-          test -n "${IMAGE_NAME}" || { echo "The GHCR image GitHub Variable is required." >&2; exit 1; }
-          case "${IMAGE_NAME}" in ghcr.io/*) ;; *) echo "Image destination must start with ghcr.io/." >&2; exit 1 ;; esac
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: scanned-${{ matrix.component }}-${{ github.sha }}
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - id: metadata
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,format=long
-            type=ref,event=branch
-            type=ref,event=tag
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', vars.DEFAULT_BRANCH) }}
-
-      - name: Publish the exact scanned image
-        id: publish
-        shell: bash
-        env:
-          IMAGE_TAGS: ${{ steps.metadata.outputs.tags }}
-        run: |
-          docker load --input scanned-${{ matrix.component }}.tar
-          while IFS= read -r tag; do
-            test -n "${tag}" || continue
-            docker tag "local/${{ matrix.component }}:${GITHUB_SHA}" "${tag}"
-            docker push "${tag}"
-          done <<< "${IMAGE_TAGS}"
-          digest="$(docker buildx imagetools inspect "${IMAGE_NAME}:sha-${GITHUB_SHA}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
-          test -n "${digest}" || { echo "Unable to resolve published digest." >&2; exit 1; }
-          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
-
-      - uses: actions/attest@v4
-        with:
-          subject-name: ${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.publish.outputs.digest }}
-          push-to-registry: true

@@ -95,8 +95,7 @@ metadata, then applies the included binary plan on the same OS/architecture,
 Terraform version, provider lockfile, working directory, backend identity, variable
 file, and commit. Fork PR plans are never promotable.
 
-Application delivery uses a separate workflow and trust boundary. Pull requests
-test, analyze, build, and scan images without registry login or publication. Trusted
-pushes/manual runs publish distinct frontend and backend images to variable-supplied
-GHCR package names only after all required security jobs succeed. Published digests
-receive GitHub build-provenance attestations.
+Application validation uses a separate workflow and trust boundary. Pull requests
+and pushes test and analyze the Python Lambda and static frontend source. Terraform,
+not a container registry, packages the Lambdas as ZIP archives and uploads the
+frontend files to private S3 for CloudFront delivery.

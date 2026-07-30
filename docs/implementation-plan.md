@@ -92,9 +92,8 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 ### 7. CI/CD and artifact promotion
 
 - Maintain exactly two top-level workflows:
-  - Application CI builds independent frontend and backend container images,
-    performs tests, SAST, SCA, SonarCloud, Snyk, and Trivy gates, then publishes
-    trusted builds to GHCR with provenance attestations.
+  - Application CI performs tests, SAST, SCA, SonarCloud, and Snyk gates for the
+    Python Lambda source and static browser application.
   - Terraform CI performs PR/manual plans and exact reviewed-plan promotion.
 - Keep Terraform workflow YAML declarative: move command logic into repository-local
   composite actions; do not embed `run` or `script` blocks in the top-level workflow.
@@ -111,23 +110,22 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 
 Exit: apply never substitutes a freshly generated plan for the reviewed artifact.
 
-### Application image security and publication
+### Application security and deployment packaging
 
-- Build a portable Nginx frontend image with runtime `API_URL` configuration.
-- Build the Python query Lambda as a separate AWS Lambda base image.
-- Run Ruff and pytest before either image is publishable.
+- Keep deployment aligned with the actual Terraform architecture:
+  - Terraform packages each Python Lambda as a ZIP archive and deploys it directly.
+  - Terraform uploads the plain HTML, CSS, JavaScript, and rendered API configuration
+    to the private frontend S3 bucket served by CloudFront.
+- Maintain only the ZIP and static-file formats used by Terraform deployment.
+- Run Ruff and pytest with coverage.
 - Run CodeQL SAST for Python and JavaScript, GitHub dependency review on pull
-  requests, Snyk Open Source SCA, SonarCloud analysis/quality gate, Trivy container
-  scans, and Snyk container scans.
+  requests, Snyk Open Source SCA and Snyk Code SAST, plus SonarCloud analysis and
+  its quality gate.
 - Upload SARIF where GitHub code scanning is enabled.
-- Publish only trusted push/manual builds to the image names supplied through
-  `GHCR_FRONTEND_IMAGE` and `GHCR_BACKEND_IMAGE` GitHub Variables.
-- Authenticate to GHCR only with the ephemeral repository `GITHUB_TOKEN`; reference
-  `SNYK_TOKEN` and `SONAR_TOKEN` only through GitHub Secrets.
-- Attest each published image digest.
+- Reference `SNYK_TOKEN` and `SONAR_TOKEN` only through GitHub Secrets.
 
-Exit: frontend and backend are separate scanned, traceable GHCR packages and no
-credential or sensitive value is embedded in workflow files or image layers.
+Exit: CI analyzes the exact source deployed by Terraform without maintaining an
+unused second delivery path.
 
 ### 8. Documentation and verification
 

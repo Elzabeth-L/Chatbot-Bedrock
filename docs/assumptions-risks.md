@@ -47,10 +47,9 @@
 - Model access, AWS account quotas, an existing backend bucket, and an existing OIDC
   role cannot be validated locally.
 - SonarCloud and Snyk gates require configured repository integrations and
-  `SONAR_TOKEN`/`SNYK_TOKEN` GitHub Secrets. Their absence fails trusted application
-  CI rather than silently bypassing a requested security gate.
-- GHCR package destinations are non-secret GitHub Variables. Publication uses only
-  the run-scoped `GITHUB_TOKEN`; no registry password is stored.
+  `SONAR_TOKEN`/`SNYK_TOKEN` GitHub Secrets. When absent, the workflow reports that
+  the corresponding external scan was skipped.
+- Lambda and frontend delivery use only Terraform ZIP/S3 packaging.
 
 ## Cost-first choices
 

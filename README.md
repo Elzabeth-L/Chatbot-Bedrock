@@ -94,13 +94,13 @@ chosen ID requires an inference-profile ARN.
 ## Repository
 
 ```text
-.github/workflows/application.yml tests, security gates, and two GHCR images
+.github/workflows/application.yml tests and application security gates
 .github/workflows/terraform.yml   script-free plan/apply/destroy orchestration
 .github/actions/terraform-*       reusable Terraform command implementation
 docs/                             pre-build architecture and implementation plans
 documents/                        small original demo corpus
-frontend/                         static app plus unprivileged Nginx image
-lambdas/chat/                     HTTP API + RAG handler and backend image
+frontend/                         static HTML, CSS, JavaScript, and API template
+lambdas/chat/                     ZIP-deployed HTTP API + RAG handler
 lambdas/ingestion/                SQS-coalesced ingestion starter
 scripts/                          post-deployment smoke test only
 terraform/                        single understandable Terraform root module
@@ -200,8 +200,7 @@ not activate Bedrock models or prove that asynchronous ingestion has completed.
 
 There are exactly two top-level workflows:
 
-- `application.yml` tests and analyzes the application, builds separate frontend and
-  backend images, scans each exact image, and publishes only those scanned images.
+- `application.yml` tests and analyzes the Python Lambda and static frontend source.
 - `terraform.yml` orchestrates Terraform using local composite actions. It contains
   no inline `run` or `script` blocks.
 
@@ -215,9 +214,6 @@ Create these GitHub Repository or Environment **Variables**:
 | `TF_BACKEND_BUCKET` | Existing state bucket |
 | `TF_STATE_KEY` | State object key |
 | `TFVARS_FILE` | Committed file, normally `environments/demo.tfvars` |
-| `DEFAULT_BRANCH` | Branch allowed to publish images, normally `main` |
-| `GHCR_FRONTEND_IMAGE` | Full package name, such as `ghcr.io/OWNER/bedrock-rag-frontend` |
-| `GHCR_BACKEND_IMAGE` | Full package name, such as `ghcr.io/OWNER/bedrock-rag-backend` |
 | `SONAR_ORGANIZATION` | SonarCloud organization key |
 | `SONAR_PROJECT_KEY` | SonarCloud project key |
 
@@ -225,47 +221,35 @@ Create these GitHub **Secrets**:
 
 | Secret | Purpose |
 |---|---|
-| `SNYK_TOKEN` | Snyk Open Source, Code, and container analysis |
+| `SNYK_TOKEN` | Snyk Open Source and Code analysis |
 | `SONAR_TOKEN` | SonarCloud analysis and quality-gate polling |
 
-GHCR authentication uses the automatically generated, run-scoped
-`secrets.GITHUB_TOKEN`; do not create a registry password. AWS authentication uses
-OIDC and never uses stored AWS access keys. Workflows reference secrets only through
-GitHub’s secret context, so token values are masked and are not written to command
-arguments, artifacts, images, or summaries.
+AWS authentication uses OIDC and never uses stored AWS access keys. Workflows
+reference secrets only through GitHub’s secret context, so token values are masked
+and are not written to command arguments, artifacts, packages, or summaries.
 
-On non-publishing feature-branch runs, Snyk and SonarCloud emit a notice and skip
-when their configuration is absent, while tests, Ruff, CodeQL, Trivy, and available
-GitHub-native checks still run. A default-branch or manual publication run fails
-closed unless both external security integrations are fully configured.
+Snyk and SonarCloud emit a notice and skip when their external configuration is
+absent, while tests, Ruff, CodeQL, and available GitHub-native checks still run.
 
 The repository includes a non-secret `environments/demo.tfvars`. Select another
 committed non-secret environment file with `TFVARS_FILE` when needed. This project
 has no application secrets.
 
-## Application security and GHCR images
+## Application security and deployment packages
 
-Application CI performs these required gates before publication:
+Application CI performs these source-level checks:
 
 - Ruff and pytest with coverage
 - CodeQL SAST for Python and JavaScript
 - GitHub dependency review on pull requests
 - Snyk Open Source SCA and Snyk Code SAST
 - SonarCloud analysis and quality gate
-- Trivy and Snyk scans of both container images
 
-Pull requests do not log in to GHCR or publish packages. On the configured default
-branch or a trusted manual run, each locally scanned image is saved as a short-lived
-artifact. The publish job loads that exact artifact, pushes it to the corresponding
-GHCR Variable destination, and creates a GitHub build-provenance attestation for the
-published digest. It does not rebuild between scanning and publication.
-
-The frontend image runs as a non-root Nginx user on port 8080. Set its non-secret
-runtime `API_URL` environment variable; startup renders only `config.js`. The
-backend image uses the AWS Lambda Python 3.13 base image and exposes
-`handler.handler`. Terraform’s current Lambda deployment remains ZIP-based, so the
-backend GHCR package is an independently deployable artifact rather than an
-automatic change to the Lambda package type.
+There is no container registry path. Terraform creates ZIP archives from the Python
+Lambda directories and deploys them directly to Lambda. It uploads the plain HTML,
+CSS, JavaScript, and rendered `config.js` to the private frontend S3 bucket served
+by CloudFront. CI therefore analyzes the same source that Terraform deploys instead
+of maintaining a second deployment package format.
 
 The existing IAM role trust policy should constrain:
 
