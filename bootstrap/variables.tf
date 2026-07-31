@@ -23,3 +23,28 @@ variable "tags" {
     Purpose   = "Terraform-State"
   }
 }
+
+variable "github_owner" {
+  type    = string
+  default = "Elzabeth-L"
+}
+
+variable "github_owner_id" {
+  type    = string
+  default = "262315662"
+}
+
+variable "github_repository" {
+  type    = string
+  default = "Chatbot-Bedrock"
+}
+
+variable "github_repository_id" {
+  type    = string
+  default = "1314924557"
+}
+
+variable "feature_branch" {
+  type    = string
+  default = "feature/initial-bedrock-rag"
+}

@@ -114,7 +114,8 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 - Produce a binary plan, readable summary, lockfile, and immutable metadata with
   SHA-256 checksums.
 - Add a main-branch-only manual apply path with exact typed confirmation that
-  downloads a selected trusted plan-run
+  automatically selects the newest successful manual plan artifact for the exact
+  commit and requested mode
   artifact and verifies commit, versions, working directory, backend identity,
   variable identity, age, checksums, repository, event, and branch before applying
   the exact binary plan.

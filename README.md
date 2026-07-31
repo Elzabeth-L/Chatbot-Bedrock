@@ -299,8 +299,9 @@ branch refs. Without GitHub Environments, the deployment role trusts only
 `repo:OWNER@OWNER-ID/REPOSITORY@REPOSITORY-ID:ref:refs/heads/main`. GitHub
 repositories created after 2026-07-15 use this immutable ID-bearing subject format
 by default. Protect `main` with required pull-request reviews and passing checks;
-apply/destroy additionally require an exact typed confirmation and a reviewed-plan
-run ID.
+apply/destroy additionally require an exact typed confirmation. The workflow
+automatically selects the newest successful unexpired manual plan artifact for the
+exact commit and requested mode.
 
 ## Plan, apply, and destroy
 
@@ -325,8 +326,7 @@ To apply:
 
 1. Review the PR plan, merge, and run a manual plan on the exact final commit.
 2. Run the workflow from `main` at that exact commit with `action=apply`.
-3. Enter the trusted plan workflow run ID.
-4. Enter exact confirmation `apply`.
+3. Enter exact confirmation `apply`; the matching plan is selected automatically.
 
 The job downloads that run’s artifact and rejects a checksum, commit, version,
 provider lock, path, backend, variable, age, repository, source-run, runner, or trust
@@ -338,7 +338,7 @@ To destroy:
 1. Dispatch `action=destroy`, `destroy_phase=plan`.
 2. Review the exact destroy-plan artifact.
 3. Dispatch from the same commit with `action=destroy`, `destroy_phase=apply`, the
-   source run ID, and exact confirmation `destroy`.
+   exact confirmation `destroy`; the matching destroy plan is selected automatically.
 
 If an artifact expires or its commit is no longer the deployment target, generate
 and review a new plan. Never promote an artifact from a fork.

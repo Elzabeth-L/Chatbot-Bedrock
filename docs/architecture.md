@@ -90,8 +90,9 @@ request.
 ## CI/CD trust boundary
 
 PR plans are review artifacts, not deployment authority. A main-branch-only manual
-apply job requires exact typed confirmation and a source workflow run ID, verifies
-artifact provenance and immutable metadata, then applies the included binary plan
+apply job requires exact typed confirmation, automatically selects the newest
+successful exact-commit manual plan artifact, verifies artifact provenance and
+immutable metadata, then applies the included binary plan
 on the same OS/architecture,
 Terraform version, provider lockfile, working directory, backend identity, variable
 file, and commit. Fork PR plans are never promotable.
