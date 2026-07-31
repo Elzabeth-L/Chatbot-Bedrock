@@ -6,7 +6,7 @@ inputs:
     description: apply or destroy
     required: true
   confirmation:
-    description: Exact destroy confirmation for destroy mode
+    description: Exact apply or destroy confirmation matching the promotion mode
     required: false
   source-run-id:
     description: Trusted manual plan workflow run ID
@@ -56,8 +56,8 @@ runs:
           exit 1
         }
         test -n "${SOURCE_RUN_ID}" || { echo "source_run_id is required." >&2; exit 1; }
-        if [[ "${MODE}" == "destroy" && "${CONFIRMATION}" != "destroy" ]]; then
-          echo "Exact confirmation 'destroy' is required." >&2
+        if [[ "${CONFIRMATION}" != "${MODE}" ]]; then
+          echo "Confirmation must exactly match promotion mode '${MODE}'." >&2
           exit 1
         fi
 

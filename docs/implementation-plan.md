@@ -103,17 +103,19 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 - Use PR/manual plan execution with GitHub OIDC and only `id-token: write`,
   `contents: read`, and PR comment permission when needed.
 - Bootstrap separate repository-scoped GitHub OIDC roles: a read-oriented role for
-  plan/refresh and backend locking, and a deployment role used only by protected
-  apply/destroy environments.
+  plan/refresh and backend locking, and a deployment role restricted to the
+  protected `main` branch.
 - Match exact immutable owner/repository IDs in OIDC subjects where GitHub's
   immutable subject format applies.
 - Produce a binary plan, readable summary, lockfile, and immutable metadata with
   SHA-256 checksums.
-- Add a protected manual apply path that downloads a selected trusted plan-run
+- Add a main-branch-only manual apply path with exact typed confirmation that
+  downloads a selected trusted plan-run
   artifact and verifies commit, versions, working directory, backend identity,
   variable identity, age, checksums, repository, event, and branch before applying
   the exact binary plan.
-- Add a protected, explicit two-stage destroy-plan/destroy-apply process.
+- Add a main-branch-only, explicitly confirmed two-stage
+  destroy-plan/destroy-apply process.
 - Refuse fork-originated plan promotion.
 
 Exit: apply never substitutes a freshly generated plan for the reviewed artifact.

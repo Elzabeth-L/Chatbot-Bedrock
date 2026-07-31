@@ -214,12 +214,12 @@ Create these GitHub Repository or Environment **Variables**:
 | Variable | Purpose |
 |---|---|
 | `AWS_PLAN_ROLE_ARN` | Read-oriented GitHub OIDC role for plan/refresh |
-| `AWS_DEPLOY_ROLE_ARN` | GitHub OIDC role for protected apply/destroy |
+| `AWS_DEPLOY_ROLE_ARN` | GitHub OIDC role for main-branch apply/destroy |
 | `AWS_REGION` | Deployment Region, normally `us-east-1` |
 | `TERRAFORM_VERSION` | Exact CI version, currently `1.15.8` |
 | `TF_BACKEND_BUCKET` | Existing state bucket |
 | `TF_STATE_KEY` | State object key |
-| `TFVARS_FILE` | Committed file, normally `environments/demo.tfvars` |
+| `TFVARS_FILE` | Committed file, normally `terraform/demo.tfvars` |
 | `SNYK_ORG` | Snyk organization slug used explicitly by CLI scans |
 | `SONAR_ORGANIZATION` | SonarCloud organization key |
 | `SONAR_PROJECT_KEY` | SonarCloud project key |
@@ -238,7 +238,7 @@ and are not written to command arguments, artifacts, packages, or summaries.
 Snyk and SonarCloud emit a notice and skip when their external configuration is
 absent, while tests, Ruff, CodeQL, and available GitHub-native checks still run.
 
-The repository includes a non-secret `environments/demo.tfvars`. Select another
+The repository includes a non-secret `terraform/demo.tfvars`. Select another
 committed non-secret environment file with `TFVARS_FILE` when needed. This project
 has no application secrets.
 
@@ -269,8 +269,7 @@ The two IAM role trust policies constrain:
 - subject to the exact `OWNER/REPOSITORY`
 - immutable owner and repository IDs for repositories using GitHub's immutable OIDC
   subject format
-- protected environment subjects for apply/destroy, such as
-  `repo:OWNER/REPOSITORY:environment:demo-apply`
+- the exact protected `main` branch ref for apply/destroy
 - intended branch/ref for plan operations
 - no wildcard organization trust
 
@@ -292,12 +291,12 @@ Example condition fragment:
 ```
 
 The plan role trusts pull requests from this repository plus explicitly approved
-branch refs. The deployment role instead trusts only
-`repo:OWNER@OWNER-ID/REPOSITORY@REPOSITORY-ID:environment:demo-apply` and
-`repo:OWNER@OWNER-ID/REPOSITORY@REPOSITORY-ID:environment:demo-destroy`. GitHub
+branch refs. Without GitHub Environments, the deployment role trusts only
+`repo:OWNER@OWNER-ID/REPOSITORY@REPOSITORY-ID:ref:refs/heads/main`. GitHub
 repositories created after 2026-07-15 use this immutable ID-bearing subject format
-by default. Configure required reviewers on both environments before the first
-remote apply.
+by default. Protect `main` with required pull-request reviews and passing checks;
+apply/destroy additionally require an exact typed confirmation and a reviewed-plan
+run ID.
 
 ## Plan, apply, and destroy
 
@@ -321,9 +320,9 @@ design—no workflow silently replans during apply.
 To apply:
 
 1. Review the PR plan, merge, and run a manual plan on the exact final commit.
-2. Run the workflow from that exact ref with `action=apply`.
+2. Run the workflow from `main` at that exact commit with `action=apply`.
 3. Enter the trusted plan workflow run ID.
-4. Approve the `demo-apply` environment.
+4. Enter exact confirmation `apply`.
 
 The job downloads that run’s artifact and rejects a checksum, commit, version,
 provider lock, path, backend, variable, age, repository, source-run, runner, or trust
@@ -336,7 +335,6 @@ To destroy:
 2. Review the exact destroy-plan artifact.
 3. Dispatch from the same commit with `action=destroy`, `destroy_phase=apply`, the
    source run ID, and exact confirmation `destroy`.
-4. Approve the protected `demo-destroy` environment.
 
 If an artifact expires or its commit is no longer the deployment target, generate
 and review a new plan. Never promote an artifact from a fork.

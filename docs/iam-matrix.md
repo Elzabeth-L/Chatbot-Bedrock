@@ -11,14 +11,14 @@
 | AWS Budgets service | publish alerts | One SNS topic, with account/source constraints when supported |
 | CloudWatch alarms | publish alarm transitions | One SNS topic |
 | GitHub plan role | read/refresh managed resources; read state and manage only its lock object | Exact repository PR/approved refs; backend state prefix; read-oriented service actions |
-| GitHub deployment role | apply/destroy reviewed plans; state/lock access; pass only application roles | Protected `demo-apply`/`demo-destroy` environment subjects; project-named IAM roles and application services |
+| GitHub deployment role | apply/destroy reviewed plans; state/lock access; pass only application roles | Exact immutable repository `main` ref; project-named IAM roles and application services |
 
 ## Wildcard policy exceptions
 
 Application runtime roles use no wildcard actions. The bootstrapped CI roles use
 service-limited read/write action families where AWS control-plane APIs cannot be
 resource-scoped; their OIDC trust is restricted to this repository and, for
-deployment, protected GitHub environment subjects.
+deployment, the immutable repository identity and `main` branch ref.
 `bedrock:RetrieveAndGenerate` currently does not support resource-level
 authorization, so the query role uses `Resource: "*"` for that one exact action.
 The runtime is constrained to the Terraform-injected Knowledge Base ID, and model

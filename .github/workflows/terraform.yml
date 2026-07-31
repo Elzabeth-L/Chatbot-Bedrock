@@ -7,7 +7,6 @@ on:
       - "frontend/**"
       - "lambdas/**"
       - "documents/**"
-      - "environments/**"
       - ".github/actions/terraform-*/**"
       - ".github/workflows/terraform.yml"
       - "backend.hcl.example"
@@ -30,7 +29,7 @@ on:
         type: choice
         options: [plan, apply]
       confirmation:
-        description: Enter destroy only for destroy apply
+        description: Enter apply for apply, or destroy for destroy apply
         required: false
         type: string
 
@@ -98,9 +97,12 @@ jobs:
           path: terraform/plan-comment.txt
 
   apply:
-    if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.action == 'apply' &&
+      inputs.confirmation == 'apply'
     runs-on: ubuntu-latest
-    environment: demo-apply
     permissions:
       contents: read
       id-token: write
@@ -122,6 +124,7 @@ jobs:
       - uses: ./.github/actions/terraform-promote
         with:
           mode: apply
+          confirmation: ${{ inputs.confirmation }}
           source-run-id: ${{ inputs.source_run_id }}
           expected-commit-sha: ${{ github.sha }}
           working-directory: terraform
@@ -136,9 +139,10 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' &&
       inputs.action == 'destroy' &&
-      inputs.destroy_phase == 'apply'
+      inputs.destroy_phase == 'apply' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.confirmation == 'destroy'
     runs-on: ubuntu-latest
-    environment: demo-destroy
     permissions:
       contents: read
       id-token: write
