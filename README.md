@@ -3,8 +3,8 @@
 A deliberately small browser chatbot that retrieves from a private Amazon Bedrock
 Knowledge Base, answers with Amazon Nova Micro, displays sanitized citations, and
 keeps anonymous browser-session history in DynamoDB. Terraform provisions the
-infrastructure; GitHub Actions uses an existing AWS OIDC role and promotes exact
-reviewed binary plans.
+infrastructure; GitHub Actions uses separate repository-scoped AWS OIDC roles and
+promotes exact reviewed binary plans.
 
 The design was documented before implementation. See the [planning index](docs/README.md).
 
@@ -153,13 +153,13 @@ Lambda environment variables. The Lambda makes no SSM call on a chat request.
 - Amazon Bedrock model access/activation completed if the account requires it
 - Terraform 1.15.8
 - An existing encrypted, versioned, private Terraform-state S3 bucket
-- An existing AWS IAM role trusted for GitHub Actions OIDC
+- Separate AWS IAM plan and deployment roles trusted for GitHub Actions OIDC
 - Python 3.13 plus `pip` for local unit tests
 - AWS CLI credentials for local plans, or GitHub OIDC for workflows
 
 The deployment principal also needs account-level permissions for AWS Budgets and
 the listed IAM/resource types. Some AWS APIs expose non-resource-scoped control-plane
-actions; constrain those in the existing deployment role with repository,
+actions; constrain those in the deployment role with repository,
 environment, account, and Region conditions where possible.
 
 ## Backend and variables
@@ -208,7 +208,8 @@ Create these GitHub Repository or Environment **Variables**:
 
 | Variable | Purpose |
 |---|---|
-| `AWS_ROLE_ARN` | Existing GitHub OIDC deployment role |
+| `AWS_PLAN_ROLE_ARN` | Read-oriented GitHub OIDC role for plan/refresh |
+| `AWS_DEPLOY_ROLE_ARN` | GitHub OIDC role for protected apply/destroy |
 | `AWS_REGION` | Deployment Region, normally `us-east-1` |
 | `TERRAFORM_VERSION` | Exact CI version, currently `1.15.8` |
 | `TF_BACKEND_BUCKET` | Existing state bucket |
@@ -252,7 +253,7 @@ CSS, JavaScript, and rendered `config.js` to the private frontend S3 bucket serv
 by CloudFront. CI therefore analyzes the same source that Terraform deploys instead
 of maintaining a second deployment package format.
 
-The existing IAM role trust policy should constrain:
+The two IAM role trust policies constrain:
 
 - provider: `token.actions.githubusercontent.com`
 - audience: `sts.amazonaws.com`
@@ -272,16 +273,18 @@ Example condition fragment:
   "StringLike": {
     "token.actions.githubusercontent.com:sub": [
       "repo:OWNER/REPOSITORY:pull_request",
-      "repo:OWNER/REPOSITORY:environment:demo-apply",
-      "repo:OWNER/REPOSITORY:environment:demo-destroy"
+      "repo:OWNER/REPOSITORY:ref:refs/heads/feature/initial-bedrock-rag",
+      "repo:OWNER/REPOSITORY:ref:refs/heads/main"
     ]
   }
 }
 ```
 
-Separate plan and deployment roles would be stronger in production, but this task
-uses the supplied role. Configure required reviewers on `demo-apply` and
-`demo-destroy`.
+The plan role trusts pull requests from this repository plus explicitly approved
+branch refs. The deployment role instead trusts only
+`repo:OWNER/REPOSITORY:environment:demo-apply` and
+`repo:OWNER/REPOSITORY:environment:demo-destroy`. Configure required reviewers on
+both environments before the first remote apply.
 
 ## Plan, apply, and destroy
 
@@ -428,4 +431,4 @@ custom domains, accessibility testing, restore policies, and formal RAG evaluati
 Use the protected reviewed destroy workflow. Confirm Terraform outputs/resources are
 gone, inspect the pre-existing state bucket according to its retention policy, and
 check S3 versions/S3 Vectors if destruction was blocked. The backend bucket and
-existing GitHub OIDC role are intentionally not destroyed by this repository.
+bootstrapped GitHub OIDC roles are intentionally not destroyed by this repository.

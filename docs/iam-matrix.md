@@ -10,15 +10,19 @@
 | CloudFront service | read frontend objects through OAC | One frontend bucket and distribution source ARN |
 | AWS Budgets service | publish alerts | One SNS topic, with account/source constraints when supported |
 | CloudWatch alarms | publish alarm transitions | One SNS topic |
-| Existing GitHub deployment role | remote state access and resource deployment | Existing externally managed role, scoped to repository/environment |
+| GitHub plan role | read/refresh managed resources; read state and manage only its lock object | Exact repository PR/approved refs; backend state prefix; read-oriented service actions |
+| GitHub deployment role | apply/destroy reviewed plans; state/lock access; pass only application roles | Protected `demo-apply`/`demo-destroy` environment subjects; project-named IAM roles and application services |
 
 ## Wildcard policy exceptions
 
-No wildcard actions are allowed. `bedrock:RetrieveAndGenerate` currently does not
-support resource-level authorization, so the query role uses `Resource: "*"` for
-that one exact action. The runtime is constrained to the Terraform-injected
-Knowledge Base ID, and model invocation is separately scoped to the selected model
-ARN.
+Application runtime roles use no wildcard actions. The bootstrapped CI roles use
+service-limited read/write action families where AWS control-plane APIs cannot be
+resource-scoped; their OIDC trust is restricted to this repository and, for
+deployment, protected GitHub environment subjects.
+`bedrock:RetrieveAndGenerate` currently does not support resource-level
+authorization, so the query role uses `Resource: "*"` for that one exact action.
+The runtime is constrained to the Terraform-injected Knowledge Base ID, and model
+invocation is separately scoped to the selected model ARN.
 
 If provider/API testing finds another action requires a resource wildcard, it must:
 

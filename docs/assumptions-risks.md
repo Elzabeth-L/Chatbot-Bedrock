@@ -4,8 +4,8 @@
 
 - The deployment account can activate/invoke Nova Micro and Titan Text Embeddings
   V2 in `us-east-1`.
-- The existing GitHub OIDC deployment role can create the listed resources and read
-  and lock the pre-existing state object.
+- Separate GitHub OIDC roles are bootstrapped outside the application Terraform
+  root: a read-oriented plan role and a deployment role for reviewed apply/destroy.
 - The existing backend bucket is versioned, encrypted, and blocked from public
   access; this module neither creates nor changes it.
 - The demo corpus is small and contains redistribution-safe, repository-authored
@@ -44,8 +44,9 @@
   configuration commit, backend identity, and variables.
 - GitHub artifacts expire and workflow artifacts from forks are untrusted. Apply
   requires an unexpired artifact from an authorized run in the same repository.
-- Model access, AWS account quotas, an existing backend bucket, and an existing OIDC
-  role cannot be validated locally.
+- Model access and AWS account quotas require pre-deployment validation. Backend
+  bucket controls and the repository-scoped OIDC role trust are validated during
+  bootstrap.
 - SonarCloud and Snyk gates require configured repository integrations and
   `SONAR_TOKEN`/`SNYK_TOKEN` GitHub Secrets. When absent, the workflow reports that
   the corresponding external scan was skipped.

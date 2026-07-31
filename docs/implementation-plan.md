@@ -102,6 +102,9 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
   composite actions; do not embed `run` or `script` blocks in the top-level workflow.
 - Use PR/manual plan execution with GitHub OIDC and only `id-token: write`,
   `contents: read`, and PR comment permission when needed.
+- Bootstrap separate repository-scoped GitHub OIDC roles: a read-oriented role for
+  plan/refresh and backend locking, and a deployment role used only by protected
+  apply/destroy environments.
 - Produce a binary plan, readable summary, lockfile, and immutable metadata with
   SHA-256 checksums.
 - Add a protected manual apply path that downloads a selected trusted plan-run
@@ -148,8 +151,8 @@ Exit: definition-of-done checklist is traceable to code and test evidence.
 
 These do not block implementation. Examples will use placeholders:
 
-- Existing Terraform backend bucket name
-- Existing AWS deployment role ARN
+- Bootstrapped Terraform backend bucket name
+- GitHub plan and deployment role ARNs
 - GitHub owner/repository
 - Optional notification email
 
