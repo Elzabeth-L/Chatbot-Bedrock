@@ -248,7 +248,6 @@ Application CI performs these source-level checks:
 
 - Ruff and pytest with coverage
 - CodeQL SAST for Python and JavaScript
-- GitHub dependency review on pull requests
 - Snyk Open Source SCA and Snyk Code SAST
 - SonarCloud analysis and quality gate
 

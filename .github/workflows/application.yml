@@ -82,7 +82,7 @@ jobs:
           category: /language:${{ matrix.language }}
 
   supply-chain:
-    name: SCA and Snyk security
+    name: Snyk SCA and SAST
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
@@ -106,12 +106,6 @@ jobs:
             echo "enabled=false" >> "${GITHUB_OUTPUT}"
             echo "::notice::Snyk scans are skipped because SNYK_TOKEN or SNYK_ORG is not configured."
           fi
-
-      - name: GitHub dependency review
-        if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
 
       - if: steps.snyk_config.outputs.enabled == 'true'
         uses: actions/setup-python@v6

@@ -126,9 +126,8 @@ Exit: apply never substitutes a freshly generated plan for the reviewed artifact
     to the private frontend S3 bucket served by CloudFront.
 - Maintain only the ZIP and static-file formats used by Terraform deployment.
 - Run Ruff and pytest with coverage.
-- Run CodeQL SAST for Python and JavaScript, GitHub dependency review on pull
-  requests, Snyk Open Source SCA and Snyk Code SAST, plus SonarCloud analysis and
-  its quality gate.
+- Run CodeQL SAST for Python and JavaScript, Snyk Open Source SCA and Snyk Code
+  SAST, plus SonarCloud analysis and its quality gate.
 - Run SonarCloud at internal PR, manual, and main-push promotion points instead of
   duplicating unsupported feature-branch analysis.
 - Select the intended Snyk organization explicitly through the non-sensitive
