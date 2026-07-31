@@ -101,10 +101,11 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 - Maintain exactly two top-level workflows:
   - Application CI performs tests, SAST, SCA, SonarCloud, and Snyk gates for the
     Python Lambda source and static browser application.
-  - Terraform CI performs PR/manual plans and exact reviewed-plan promotion.
+  - Terraform CI performs PR plans, automatic plans after relevant pushes to
+    `main`, manual plans, and exact reviewed-plan promotion.
 - Keep Terraform workflow YAML declarative: move command logic into repository-local
   composite actions; do not embed `run` or `script` blocks in the top-level workflow.
-- Use PR/manual plan execution with GitHub OIDC and only `id-token: write`,
+- Use PR, main-push, and manual plan execution with GitHub OIDC and only `id-token: write`,
   `contents: read`, and PR comment permission when needed.
 - Bootstrap separate repository-scoped GitHub OIDC roles: a read-oriented role for
   plan/refresh and backend locking, and a deployment role restricted to the
@@ -114,9 +115,9 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 - Produce a binary plan, readable summary, lockfile, and immutable metadata with
   SHA-256 checksums.
 - Add a main-branch-only manual apply path with exact typed confirmation that
-  automatically selects the newest successful manual plan artifact for the exact
-  commit and requested mode
-  artifact and verifies commit, versions, working directory, backend identity,
+  automatically selects the newest successful manual or main-push plan artifact
+  for the exact commit and requested mode, and verifies commit, versions, working
+  directory, backend identity,
   variable identity, age, checksums, repository, event, and branch before applying
   the exact binary plan.
 - Add a main-branch-only, explicitly confirmed two-stage

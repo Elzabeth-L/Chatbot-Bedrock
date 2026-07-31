@@ -300,8 +300,8 @@ branch refs. Without GitHub Environments, the deployment role trusts only
 repositories created after 2026-07-15 use this immutable ID-bearing subject format
 by default. Protect `main` with required pull-request reviews and passing checks;
 apply/destroy additionally require an exact typed confirmation. The workflow
-automatically selects the newest successful unexpired manual plan artifact for the
-exact commit and requested mode.
+automatically selects the newest successful unexpired manual or `main`-push plan
+artifact for the exact commit and requested mode.
 
 ## Plan, apply, and destroy
 
@@ -318,13 +318,14 @@ backend identity, tfvars identity, timestamp, lockfile checksum, and plan checks
 Artifacts are retained for seven days.
 
 PR plan artifacts are reviewable but normally cannot be promoted after merge because
-the merge commit SHA differs. After merge, run a manual `plan` on the final target
-commit; that exact artifact is the promotable plan. This is the safe practical
-design—no workflow silently replans during apply.
+the merge commit SHA differs. A relevant merge to `main` automatically runs a new
+plan on the final merge commit; that exact artifact is promotable. A manual `plan`
+through `workflow_dispatch` remains available and can produce a newer promotable
+artifact for the same commit. Apply never silently replans.
 
 To apply:
 
-1. Review the PR plan, merge, and run a manual plan on the exact final commit.
+1. Review the PR plan, merge, and review the automatic plan on the final merge commit.
 2. Run the workflow from `main` at that exact commit with `action=apply`.
 3. Enter exact confirmation `apply`; the matching plan is selected automatically.
 

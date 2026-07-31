@@ -69,12 +69,13 @@ runs:
           const expectedName = (runId) =>
             `terraform-${process.env.EXPECTED_MODE}-${runId}-${process.env.EXPECTED_COMMIT_SHA}`;
           const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
-            owner, repo, workflow_id: "terraform.yml", event: "workflow_dispatch",
+            owner, repo, workflow_id: "terraform.yml",
             status: "completed", per_page: 100
           });
           let selected;
           for (const run of runs) {
             if (run.id === context.runId || run.conclusion !== "success" ||
+                !["workflow_dispatch", "push"].includes(run.event) ||
                 run.head_sha !== process.env.EXPECTED_COMMIT_SHA ||
                 run.head_repository.full_name !== `${owner}/${repo}`) continue;
             const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
@@ -88,7 +89,9 @@ runs:
           const run = selected.run;
           if (run.path !== ".github/workflows/terraform.yml") throw new Error(`Unexpected workflow: ${run.path}`);
           if (run.status !== "completed" || run.conclusion !== "success") throw new Error("Source run was not successful");
-          if (run.event !== "workflow_dispatch") throw new Error("Only manual plan runs are promotable");
+          if (!["workflow_dispatch", "push"].includes(run.event)) {
+            throw new Error("Only manual or main-push plan runs are promotable");
+          }
           if (run.head_sha !== process.env.EXPECTED_COMMIT_SHA) throw new Error("Source commit mismatch");
           if (run.head_repository.full_name !== `${owner}/${repo}`) throw new Error("Fork artifacts are forbidden");
           core.setOutput("run_id", String(run.id));
@@ -192,7 +195,11 @@ runs:
         require_equal "$(value SOURCE_RUN_ID)" "${EXPECTED_SOURCE_RUN_ID}" "source run"
         require_equal "$(value SOURCE_REPOSITORY)" "${GITHUB_REPOSITORY}" "repository"
         require_equal "$(value SOURCE_HEAD_REPOSITORY)" "${GITHUB_REPOSITORY}" "fork source"
-        require_equal "$(value SOURCE_EVENT)" "workflow_dispatch" "source event"
+        source_event="$(value SOURCE_EVENT)"
+        if [[ "${source_event}" != "workflow_dispatch" && "${source_event}" != "push" ]]; then
+          echo "::error::Invalid source event"
+          exit 1
+        fi
         require_equal "$(value COMMIT_SHA)" "${EXPECTED_COMMIT_SHA}" "commit"
         require_equal "$(value TERRAFORM_VERSION)" "${EXPECTED_TERRAFORM_VERSION}" "Terraform version"
         require_equal "$(value RUNNER_OS)" "${RUNNER_OS}" "runner OS"

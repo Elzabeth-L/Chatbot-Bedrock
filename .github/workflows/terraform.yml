@@ -1,6 +1,17 @@
 name: Terraform
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - "frontend/**"
+      - "lambdas/**"
+      - "documents/**"
+      - ".github/actions/terraform-*/**"
+      - ".github/workflows/terraform.yml"
+      - "backend.hcl.example"
+      - "terraform.tfvars.example"
   pull_request:
     paths:
       - "terraform/**"
@@ -48,6 +59,7 @@ env:
 jobs:
   plan:
     if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'workflow_dispatch' && inputs.action == 'plan') ||
