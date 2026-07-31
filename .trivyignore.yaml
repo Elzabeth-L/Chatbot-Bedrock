@@ -1,0 +1,26 @@
+misconfigurations:
+  - id: AWS-0011
+    paths:
+      - "frontend.tf"
+    expired_at: 2027-01-31
+    statement: >-
+      This cost-capped public demo intentionally omits AWS WAF; API throttling,
+      bounded requests, alarms, and a mandatory budget reduce but do not eliminate
+      abuse risk. Reassess before the exception expires.
+  - id: AWS-0132
+    paths:
+      - "frontend.tf"
+      - "storage.tf"
+    expired_at: 2027-01-31
+    statement: >-
+      The private demo buckets use SSE-S3 to avoid a customer-managed KMS key's
+      recurring cost and policy surface. Public access is blocked and TLS is
+      enforced. Reassess before the exception expires.
+  - id: AWS-0136
+    paths:
+      - "monitoring.tf"
+    expired_at: 2027-01-31
+    statement: >-
+      The alert topic uses the AWS-managed SNS key to avoid a customer-managed KMS
+      key's recurring cost and policy surface. Reassess before the exception
+      expires.

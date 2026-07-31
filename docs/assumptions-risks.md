@@ -63,6 +63,8 @@
 - Small Lambda memory, bounded timeout, and short log retention
 - CloudFront Price Class 100
 - AWS-managed encryption keys where a customer-managed key would add recurring cost
+- Time-bounded Trivy exceptions cover only the documented no-WAF and AWS-managed
+  encryption choices; all other high/critical findings remain blocking
 - Small corpus, 256-dimensional embeddings, bounded retrieved results and history
 - Demo buckets default to `force_destroy=true` so the explicitly confirmed,
   reviewed destroy plan removes retained versions and vectors

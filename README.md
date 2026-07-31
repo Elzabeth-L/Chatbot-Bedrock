@@ -133,6 +133,11 @@ short log retention, alarms, an ingestion DLQ, and the mandatory budget. AWS WAF
 authentication, Bedrock Guardrails, per-client quotas, and centralized audit controls
 are production enhancements, not part of this demo.
 
+Trivy keeps high/critical Terraform findings blocking. Its time-bounded exceptions
+cover only this documented no-WAF choice and the deliberate use of AWS-managed/SSE-S3
+encryption to avoid customer-managed KMS key cost and policy overhead; review them
+before their recorded expiry.
+
 Citations show an object filename and a short excerpt. Raw private S3 URIs are
 removed and presigned downloads are not generated.
 

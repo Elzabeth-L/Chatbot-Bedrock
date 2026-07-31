@@ -90,6 +90,7 @@ runs:
         scan-ref: ${{ inputs.working-directory }}
         severity: HIGH,CRITICAL
         exit-code: "1"
+        trivyignores: .trivyignore.yaml
 
     - name: Create binary and readable plan
       shell: bash
