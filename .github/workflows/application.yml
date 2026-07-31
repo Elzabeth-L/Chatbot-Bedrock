@@ -112,6 +112,16 @@ jobs:
         with:
           fail-on-severity: high
 
+      - if: steps.snyk_config.outputs.enabled == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies for Snyk Open Source
+        if: steps.snyk_config.outputs.enabled == 'true'
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+
       - id: snyk_setup
         if: steps.snyk_config.outputs.enabled == 'true'
         uses: snyk/actions/setup@v1.0.0
