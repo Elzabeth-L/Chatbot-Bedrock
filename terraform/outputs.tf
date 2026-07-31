@@ -29,7 +29,8 @@ output "frontend_bucket_name" {
 }
 
 output "selected_generation_model_id" {
-  value = data.aws_ssm_parameter.generation_model_id.value
+  description = "Public Bedrock model identifier selected through SSM configuration."
+  value       = nonsensitive(data.aws_ssm_parameter.generation_model_id.value)
 }
 
 output "selected_embedding_model_id" {
