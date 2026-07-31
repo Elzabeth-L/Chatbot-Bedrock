@@ -124,6 +124,8 @@ Exit: apply never substitutes a freshly generated plan for the reviewed artifact
 - Run CodeQL SAST for Python and JavaScript, GitHub dependency review on pull
   requests, Snyk Open Source SCA and Snyk Code SAST, plus SonarCloud analysis and
   its quality gate.
+- Select the intended Snyk organization explicitly through the non-sensitive
+  `SNYK_ORG` GitHub Variable so CI does not depend on a user's preferred organization.
 - Upload SARIF where GitHub code scanning is enabled.
 - Reference `SNYK_TOKEN` and `SONAR_TOKEN` only through GitHub Secrets.
 

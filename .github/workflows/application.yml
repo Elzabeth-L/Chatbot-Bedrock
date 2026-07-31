@@ -92,6 +92,7 @@ jobs:
       security-events: write
     env:
       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      SNYK_ORG: ${{ vars.SNYK_ORG }}
     steps:
       - uses: actions/checkout@v6
 
@@ -99,11 +100,11 @@ jobs:
         id: snyk_config
         shell: bash
         run: |
-          if [[ -n "${SNYK_TOKEN}" ]]; then
+          if [[ -n "${SNYK_TOKEN}" && -n "${SNYK_ORG}" ]]; then
             echo "enabled=true" >> "${GITHUB_OUTPUT}"
           else
             echo "enabled=false" >> "${GITHUB_OUTPUT}"
-            echo "::notice::Snyk scans are skipped because SNYK_TOKEN is not configured."
+            echo "::notice::Snyk scans are skipped because SNYK_TOKEN or SNYK_ORG is not configured."
           fi
 
       - name: GitHub dependency review
@@ -131,6 +132,7 @@ jobs:
         id: snyk_sca
         run: >-
           snyk test
+          --org="${SNYK_ORG}"
           --file=requirements-dev.txt
           --package-manager=pip
           --severity-threshold=high
@@ -147,6 +149,7 @@ jobs:
         if: always() && steps.snyk_setup.outcome == 'success'
         run: >-
           snyk code test
+          --org="${SNYK_ORG}"
           --severity-threshold=high
           --sarif-file-output=snyk-code.sarif
 

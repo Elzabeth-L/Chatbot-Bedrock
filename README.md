@@ -214,6 +214,7 @@ Create these GitHub Repository or Environment **Variables**:
 | `TF_BACKEND_BUCKET` | Existing state bucket |
 | `TF_STATE_KEY` | State object key |
 | `TFVARS_FILE` | Committed file, normally `environments/demo.tfvars` |
+| `SNYK_ORG` | Snyk organization slug used explicitly by CLI scans |
 | `SONAR_ORGANIZATION` | SonarCloud organization key |
 | `SONAR_PROJECT_KEY` | SonarCloud project key |
 
