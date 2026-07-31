@@ -6,6 +6,8 @@
   V2 in `us-east-1`.
 - Separate GitHub OIDC roles are bootstrapped outside the application Terraform
   root: a read-oriented plan role and a deployment role for reviewed apply/destroy.
+- GitHub OIDC trust uses this repository's immutable owner/repository ID subject,
+  so later repository transfers require an explicit trust-policy update.
 - The existing backend bucket is versioned, encrypted, and blocked from public
   access; this module neither creates nor changes it.
 - The demo corpus is small and contains redistribution-safe, repository-authored

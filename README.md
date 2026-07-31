@@ -258,6 +258,8 @@ The two IAM role trust policies constrain:
 - provider: `token.actions.githubusercontent.com`
 - audience: `sts.amazonaws.com`
 - subject to the exact `OWNER/REPOSITORY`
+- immutable owner and repository IDs for repositories using GitHub's immutable OIDC
+  subject format
 - protected environment subjects for apply/destroy, such as
   `repo:OWNER/REPOSITORY:environment:demo-apply`
 - intended branch/ref for plan operations
@@ -272,9 +274,9 @@ Example condition fragment:
   },
   "StringLike": {
     "token.actions.githubusercontent.com:sub": [
-      "repo:OWNER/REPOSITORY:pull_request",
-      "repo:OWNER/REPOSITORY:ref:refs/heads/feature/initial-bedrock-rag",
-      "repo:OWNER/REPOSITORY:ref:refs/heads/main"
+      "repo:OWNER@OWNER-ID/REPOSITORY@REPOSITORY-ID:pull_request",
+      "repo:OWNER@OWNER-ID/REPOSITORY@REPOSITORY-ID:ref:refs/heads/feature/initial-bedrock-rag",
+      "repo:OWNER@OWNER-ID/REPOSITORY@REPOSITORY-ID:ref:refs/heads/main"
     ]
   }
 }
@@ -282,9 +284,11 @@ Example condition fragment:
 
 The plan role trusts pull requests from this repository plus explicitly approved
 branch refs. The deployment role instead trusts only
-`repo:OWNER/REPOSITORY:environment:demo-apply` and
-`repo:OWNER/REPOSITORY:environment:demo-destroy`. Configure required reviewers on
-both environments before the first remote apply.
+`repo:OWNER@OWNER-ID/REPOSITORY@REPOSITORY-ID:environment:demo-apply` and
+`repo:OWNER@OWNER-ID/REPOSITORY@REPOSITORY-ID:environment:demo-destroy`. GitHub
+repositories created after 2026-07-15 use this immutable ID-bearing subject format
+by default. Configure required reviewers on both environments before the first
+remote apply.
 
 ## Plan, apply, and destroy
 

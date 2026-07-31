@@ -105,6 +105,8 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 - Bootstrap separate repository-scoped GitHub OIDC roles: a read-oriented role for
   plan/refresh and backend locking, and a deployment role used only by protected
   apply/destroy environments.
+- Match exact immutable owner/repository IDs in OIDC subjects where GitHub's
+  immutable subject format applies.
 - Produce a binary plan, readable summary, lockfile, and immutable metadata with
   SHA-256 checksums.
 - Add a protected manual apply path that downloads a selected trusted plan-run
