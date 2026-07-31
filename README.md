@@ -252,6 +252,11 @@ Application CI performs these source-level checks:
 - Snyk Open Source SCA and Snyk Code SAST
 - SonarCloud analysis and quality gate
 
+SonarCloud runs on internal pull requests, manual dispatches, and pushes to `main`.
+This avoids unsupported/redundant feature-branch analysis while retaining the PR
+and promotion quality gates. The other application checks continue on every
+configured feature-branch push.
+
 There is no container registry path. Terraform creates ZIP archives from the Python
 Lambda directories and deploys them directly to Lambda. It uploads the plain HTML,
 CSS, JavaScript, and rendered `config.js` to the private frontend S3 bucket served
