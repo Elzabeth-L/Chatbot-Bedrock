@@ -1,7 +1,7 @@
 "use strict";
 
 const API_URL = window.APP_CONFIG?.API_URL || "";
-const SESSION_KEY = "bedrock-rag-session-id";
+const SESSION_STORAGE_ITEM = "bedrock-rag-session-id";
 const conversation = document.querySelector("#conversation");
 const form = document.querySelector("#chat-form");
 const input = document.querySelector("#message");
@@ -18,10 +18,10 @@ function isSessionId(value) {
 }
 
 function sessionId() {
-  let value = localStorage.getItem(SESSION_KEY);
+  let value = localStorage.getItem(SESSION_STORAGE_ITEM);
   if (!isSessionId(value)) {
     value = newSessionId();
-    localStorage.setItem(SESSION_KEY, value);
+    localStorage.setItem(SESSION_STORAGE_ITEM, value);
   }
   return value;
 }
