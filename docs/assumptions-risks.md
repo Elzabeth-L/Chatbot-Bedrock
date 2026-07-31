@@ -8,8 +8,9 @@
   root: a read-oriented plan role and a deployment role for reviewed apply/destroy.
 - GitHub OIDC trust uses this repository's immutable owner/repository ID subject,
   so later repository transfers require an explicit trust-policy update.
-- The existing backend bucket is versioned, encrypted, and blocked from public
-  access; this module neither creates nor changes it.
+- The separate local `bootstrap/` Terraform root owns the backend bucket and its
+  versioning, encryption, ownership, public-access, and TLS-only controls. The
+  application Terraform root never manages its own backend.
 - The demo corpus is small and contains redistribution-safe, repository-authored
   summaries that link to official documentation rather than copied manuals.
 - An unauthenticated API is acceptable for this demonstration.

@@ -21,9 +21,13 @@ account must be identified explicitly.
 - Create the agreed directories, `.gitignore`, examples, and developer tooling.
 - Pin Terraform CLI 1.15.8 and AWS provider 6.55.x.
 - Add a partial S3 backend plus `backend.hcl.example` using native S3 lockfiles.
-- Bootstrap the dedicated remote-state S3 bucket once, outside the application
-  Terraform root and pipeline apply. Enable versioning, default encryption, public
-  access blocking, and a TLS-only bucket policy before running `terraform init`.
+- Add a separate `bootstrap/` Terraform root and run it locally, never through the
+  application pipeline. It owns the dedicated remote-state S3 bucket, versioning,
+  default encryption, bucket-owner-enforced ownership, public-access blocking, and
+  TLS-only bucket policy.
+- When the named bucket already exists from an earlier manual bootstrap, adopt it
+  with `terraform import` instead of deleting/recreating a globally unique bucket;
+  all later changes must be made through the bootstrap Terraform root.
 - Establish project naming, tags, validated variables, and provider data sources.
 
 Exit: Terraform root configuration parses and all later files have stable locations.

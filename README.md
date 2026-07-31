@@ -97,6 +97,7 @@ chosen ID requires an inference-profile ARN.
 .github/workflows/application.yml tests and application security gates
 .github/workflows/terraform.yml   script-free plan/apply/destroy orchestration
 .github/actions/terraform-*       reusable Terraform command implementation
+bootstrap/                        local-only Terraform state-bucket bootstrap
 docs/                             pre-build architecture and implementation plans
 documents/                        small original demo corpus
 frontend/                         static HTML, CSS, JavaScript, and API template
@@ -157,7 +158,8 @@ Lambda environment variables. The Lambda makes no SSM call on a chat request.
   Micro, and Titan Text Embeddings V2 in the selected Region
 - Amazon Bedrock model access/activation completed if the account requires it
 - Terraform 1.15.8
-- An existing encrypted, versioned, private Terraform-state S3 bucket
+- Permission to create or adopt the encrypted, versioned, private Terraform-state
+  S3 bucket through the local `bootstrap/` Terraform root
 - Separate AWS IAM plan and deployment roles trusted for GitHub Actions OIDC
 - Python 3.13 plus `pip` for local unit tests
 - AWS CLI credentials for local plans, or GitHub OIDC for workflows
@@ -169,14 +171,16 @@ environment, account, and Region conditions where possible.
 
 ## Backend and variables
 
-The root module intentionally does not create its own backend bucket. Copy and edit:
+The application root intentionally does not create its own backend bucket. Create a
+new bucket or adopt the existing one with the local-only
+[bootstrap root](bootstrap/README.md), then copy and edit:
 
 ```bash
 cp backend.hcl.example backend.hcl
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-`backend.hcl` uses native S3 lockfiles (`use_lockfile = true`). The existing role
+`backend.hcl` uses native S3 lockfiles (`use_lockfile = true`). The plan/deployment roles
 needs object access to the state and `.tflock`; delete is needed only for the lock.
 DynamoDB locking is deprecated but a commented legacy option is provided.
 
@@ -440,6 +444,6 @@ custom domains, accessibility testing, restore policies, and formal RAG evaluati
 ## Cleanup
 
 Use the protected reviewed destroy workflow. Confirm Terraform outputs/resources are
-gone, inspect the pre-existing state bucket according to its retention policy, and
+gone, inspect the bootstrap-managed state bucket according to its retention policy, and
 check S3 versions/S3 Vectors if destruction was blocked. The backend bucket and
 bootstrapped GitHub OIDC roles are intentionally not destroyed by this repository.

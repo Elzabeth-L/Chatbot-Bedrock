@@ -64,9 +64,9 @@ the system of record.
 Use AWS-managed service encryption for S3 objects, DynamoDB, Lambda artifacts, and
 logs where that is the simple default. Use an AWS-managed KMS key for SNS where
 supported. Avoid customer-managed keys by default because per-key monthly cost and
-expanded policies are material for this demo. The pre-existing state bucket must
-already have versioning, public blocking, and encryption; it is intentionally out of
-scope for the root module.
+expanded policies are material for this demo. A separate local-only bootstrap root
+manages versioning, public blocking, ownership, encryption, and TLS enforcement for
+the state bucket; it remains intentionally out of scope for the application root.
 
 ## Terraform
 

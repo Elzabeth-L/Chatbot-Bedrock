@@ -9,6 +9,12 @@
 |   `-- workflows/
 |       |-- application.yml
 |       `-- terraform.yml
+|-- bootstrap/
+|   |-- bootstrap.tfvars
+|   |-- main.tf
+|   |-- outputs.tf
+|   |-- variables.tf
+|   `-- versions.tf
 |-- docs/
 |-- documents/
 |   |-- terraform-basics.md
@@ -52,6 +58,7 @@
 `-- README.md
 ```
 
-This uses one small Terraform root module. Splitting every service into a module
-would obscure cross-resource policies and dependencies without providing meaningful
-reuse.
+This uses one small application Terraform root plus one isolated local-only
+bootstrap root for the backend bucket. Splitting every application service into a
+module would obscure cross-resource policies and dependencies without providing
+meaningful reuse.
