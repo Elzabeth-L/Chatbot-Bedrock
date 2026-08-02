@@ -50,7 +50,9 @@ assistant messages receive a configurable TTL.
 
 `GET /sessions/{sessionId}/messages` restores unexpired history in chronological
 order. Missing, unknown, or expired session IDs safely produce an empty list. “New
-chat” creates a new UUID without deleting any other session.
+chat” creates and activates a new UUID without deleting any other session. The
+browser keeps a local index of up to 25 session IDs, titles, and update timestamps so
+the user can switch between chats; message content remains in DynamoDB.
 
 S3 sends create/update/delete notifications only for
 `knowledge-base/documents/` to SQS. A 60-second Lambda batch window coalesces bursts,
@@ -441,7 +443,8 @@ free. Check current AWS pricing and the Billing console before deployment.
 
 ## Known limitations and production hardening
 
-The public session UUID is not identity or authorization. History writes are not
+The public session UUID and browser-local session index are not identity or
+authorization and do not synchronize between browsers or devices. History writes are not
 transactional as a pair, TTL does not extend old messages, ingestion completion is
 not polled by the starter Lambda, CloudFront uses its default certificate/domain,
 whose minimum TLS policy is controlled by CloudFront, there is no WAF or custom

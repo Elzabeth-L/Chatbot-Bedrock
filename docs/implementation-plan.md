@@ -40,6 +40,9 @@ Exit: Terraform root configuration parses and all later files have stable locati
   handler, with bounded history and structured errors.
 - Use `RetrieveAndGenerate`; pass a bounded, formatted conversation context within
   the current question instead of relying on an opaque Bedrock session.
+- Use a custom Bedrock generation prompt containing the required search-result and
+  citation-format placeholders. Require every factual claim to be supported by the
+  retrieved chunks and return one exact insufficiency response otherwise.
 - Implement the ingestion Lambda. It consumes batched SQS S3 notifications, starts
   one incremental sync, and retries when a sync is already active.
 - Add unit tests with mocked AWS boundaries.
@@ -78,8 +81,12 @@ Exit: chat/history routes and eventual document synchronization are wired.
 
 ### 5. Frontend and edge delivery
 
-- Build plain HTML/CSS/JavaScript supporting local-storage session IDs, history
-  restoration, new chat, loading/error states, and citation labels/excerpts.
+- Build plain HTML/CSS/JavaScript supporting a browser-local session registry,
+  selectable prior conversations, history restoration from DynamoDB, a new UUID on
+  every New Chat action, loading/error states, and citation labels/excerpts.
+- Keep session message content in DynamoDB; store only session IDs, display titles,
+  and update timestamps in browser local storage. Treat the browser registry as a
+  convenience index rather than cross-device identity or authorization.
 - Render the deployed API URL from a Terraform template; never place secrets in JS.
 - Create a separate private encrypted S3 bucket, CloudFront OAC, HTTPS redirect,
   response security headers, Price Class 100, and restricted bucket policy.

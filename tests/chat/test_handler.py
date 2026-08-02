@@ -136,6 +136,39 @@ def test_empty_retrieval_is_insufficient(chat, monkeypatch):
     assert citations == []
 
 
+def test_contradictory_insufficient_answer_is_collapsed(chat, monkeypatch):
+    class ContradictoryBedrock:
+        def retrieve_and_generate(self, **kwargs):
+            prompt = kwargs["retrieveAndGenerateConfiguration"][
+                "knowledgeBaseConfiguration"
+            ]["generationConfiguration"]["promptTemplate"]["textPromptTemplate"]
+            assert "$search_results$" in prompt
+            assert "$output_format_instructions$" in prompt
+            return {
+                "output": {
+                    "text": f"{chat.INSUFFICIENT_ANSWER} Unsupported extra facts."
+                },
+                "citations": [
+                    {
+                        "retrievedReferences": [
+                            {
+                                "content": {"text": "A partial source."},
+                                "location": {
+                                    "type": "S3",
+                                    "s3Location": {"uri": "s3://bucket/doc.md"},
+                                },
+                            }
+                        ]
+                    }
+                ],
+            }
+
+    monkeypatch.setattr(chat, "BEDROCK", ContradictoryBedrock())
+    answer, citations = chat.call_knowledge_base([], "Question?")
+    assert answer == chat.INSUFFICIENT_ANSWER
+    assert citations == []
+
+
 def test_public_message_transformation(chat):
     item = {
         "role": "assistant",

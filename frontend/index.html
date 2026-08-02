@@ -9,12 +9,20 @@
   </head>
   <body>
     <main class="app">
+      <aside class="sessions-panel" aria-label="Saved conversations">
+        <div class="sessions-heading">
+          <p class="eyebrow">Conversations</p>
+          <button id="new-chat" type="button">New chat</button>
+        </div>
+        <nav id="session-list" class="session-list" aria-label="Conversation list"></nav>
+        <p class="session-note">Conversation messages expire according to the configured session retention.</p>
+      </aside>
+      <section class="chat-panel">
       <header>
         <div>
           <p class="eyebrow">Amazon Bedrock Knowledge Base</p>
           <h1>Docs Chat</h1>
         </div>
-        <button id="new-chat" class="secondary" type="button">New chat</button>
       </header>
       <section id="conversation" class="conversation" aria-live="polite">
         <div class="empty">
@@ -29,6 +37,7 @@
           placeholder="Ask a question…" required></textarea>
         <button id="send" type="submit">Send</button>
       </form>
+      </section>
     </main>
     <script src="config.js" defer></script>
     <script src="app.js" defer></script>

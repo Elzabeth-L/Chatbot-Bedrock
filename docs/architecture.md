@@ -28,7 +28,8 @@ unauthenticated HTTP API only.
 
 ## Chat request flow
 
-1. JavaScript creates a UUID in local storage if no valid session ID exists.
+1. JavaScript creates a UUID in local storage if no valid session ID exists and
+   registers it in a browser-local conversation index.
 2. `POST /chat` sends `sessionId` and `message`.
 3. The Lambda validates UUID shape and input size, then queries one DynamoDB
    partition in ascending order with a bounded item limit.
@@ -45,7 +46,8 @@ unauthenticated HTTP API only.
 `GET /sessions/{sessionId}/messages` validates the ID and queries the same partition.
 Unknown or expired sessions return an empty message list, not an error. DynamoDB TTL
 deletion is asynchronous, so reads also exclude records whose `expires_at` is in the
-past. New Chat creates a new browser UUID; it does not delete any other partition.
+past. New Chat creates and activates a new browser UUID; selecting a prior indexed
+session restores that partition, and no action deletes another partition.
 
 Table design:
 
