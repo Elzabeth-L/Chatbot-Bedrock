@@ -205,6 +205,24 @@ unused second delivery path.
 
 Exit: definition-of-done checklist is traceable to code and test evidence.
 
+### 9. Enterprise solution design document
+
+- Generate a formal Microsoft Word Solution Design Document from the implemented
+  repository rather than from assumptions, covering application, AWS resources,
+  Terraform, CI/CD, security, operations, deployment, cost, and maintenance.
+- Include document control, an automatic table of contents, numbered headings,
+  professional tables, headers/footers, page numbers, diagram placeholders or
+  repository-derived diagrams, appendices, glossary, and clearly identified
+  assumptions and non-implemented technologies.
+- Verify time-sensitive AWS pricing against primary AWS sources, state the pricing
+  date and estimation assumptions, and distinguish free-tier eligibility from
+  estimated development and production usage.
+- Validate the generated `.docx` package and inspect its extracted text/structure so
+  the document can be opened and maintained without referring to source code.
+
+Exit: a validated enterprise-formatted `.docx` is available under `docs/` as the
+official architecture, implementation, deployment, and operations deliverable.
+
 ## External values
 
 These do not block implementation. Examples will use placeholders:
