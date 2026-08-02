@@ -101,10 +101,12 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 - Maintain exactly two top-level workflows:
   - Application CI performs tests, SAST, SCA, SonarCloud, and Snyk gates for the
     Python Lambda source and static browser application.
-  - Terraform CI performs PR plans, automatic plans after relevant pushes to
+  - Terraform CI performs plans for every same-repository PR, automatic plans after relevant pushes to
     `main`, manual plans, and exact reviewed-plan promotion.
 - Keep Terraform workflow YAML declarative: move command logic into repository-local
   composite actions; do not embed `run` or `script` blocks in the top-level workflow.
+- Run the required Terraform `plan` check on every same-repository PR so branch
+  protection never waits indefinitely for a path-filtered required check.
 - Use PR, main-push, and manual plan execution with GitHub OIDC and only `id-token: write`,
   `contents: read`, and PR comment permission when needed.
 - Bootstrap separate repository-scoped GitHub OIDC roles: a read-oriented role for

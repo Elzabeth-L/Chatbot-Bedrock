@@ -13,15 +13,6 @@ on:
       - "backend.hcl.example"
       - "terraform.tfvars.example"
   pull_request:
-    paths:
-      - "terraform/**"
-      - "frontend/**"
-      - "lambdas/**"
-      - "documents/**"
-      - ".github/actions/terraform-*/**"
-      - ".github/workflows/terraform.yml"
-      - "backend.hcl.example"
-      - "terraform.tfvars.example"
   workflow_dispatch:
     inputs:
       action:
