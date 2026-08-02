@@ -145,6 +145,9 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
   directory, backend identity,
   variable identity, age, checksums, repository, event, and branch before applying
   the exact binary plan.
+- Print the complete HTTPS CloudFront frontend URL as a non-sensitive Terraform
+  output and in the successful promotion log/summary so operators do not confuse
+  it with the API Gateway invoke URL.
 - Add a main-branch-only, explicitly selected two-stage destroy-plan/destroy-apply
   process.
 - Refuse fork-originated plan promotion.
