@@ -80,6 +80,20 @@ resource "aws_iam_role" "github_deploy" {
   }
 }
 
+data "aws_iam_policy_document" "github_plan_supplemental" {
+  statement {
+    sid       = "ReadApplicationBudgetTags"
+    actions   = ["budgets:ListTagsForResource"]
+    resources = ["arn:${data.aws_partition.current.partition}:budgets::${data.aws_caller_identity.current.account_id}:budget/bedrock-rag-demo-*"]
+  }
+}
+
+resource "aws_iam_role_policy" "github_plan_supplemental" {
+  name   = "chatbot-bedrock-plan-supplemental"
+  role   = aws_iam_role.github_plan.id
+  policy = data.aws_iam_policy_document.github_plan_supplemental.json
+}
+
 data "aws_iam_policy_document" "github_deploy_supplemental" {
   statement {
     sid       = "ReadStateBucketMetadata"

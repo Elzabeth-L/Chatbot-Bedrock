@@ -122,8 +122,9 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 - Include the two Terraform-generated Lambda ZIP archives in the reviewed-plan
   artifact, record their SHA-256 checksums in immutable metadata, and verify and
   restore those exact archives before applying the binary plan.
-- Manage supplemental deployment-role permissions in the local bootstrap root,
-  including exact backend state writes, complete Budget tag reads/writes, DynamoDB
+- Manage supplemental role permissions in the local bootstrap root: give both the
+  plan and deployment roles the Budget tag read required for state refresh, and
+  give the deployment role exact backend state writes, Budget tag writes, DynamoDB
   TTL updates, and the CloudWatch Logs delivery operations required when API
   Gateway enables stage access logging.
 - Recover a failed first apply declaratively by importing every resource confirmed
