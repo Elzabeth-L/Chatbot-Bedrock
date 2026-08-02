@@ -101,6 +101,11 @@ data "aws_iam_policy_document" "chat" {
     resources = ["*"]
   }
   statement {
+    sid       = "RetrieveKnowledgeBase"
+    actions   = ["bedrock:Retrieve"]
+    resources = [aws_bedrockagent_knowledge_base.this.arn]
+  }
+  statement {
     sid       = "InvokeGenerationModel"
     actions   = ["bedrock:InvokeModel"]
     resources = [local.generation_model_arn]

@@ -95,6 +95,9 @@ Exit: CloudFront serves the application and calls only the deployed API.
 - Add an optional email subscription and document confirmation.
 - Review all policies for narrow actions/resources and annotate unavoidable
   resource wildcards.
+- Grant the chat Lambda the explicit resource-scoped `bedrock:Retrieve` permission
+  required by the retrieval phase underlying `RetrieveAndGenerate`, while retaining
+  the separate generation-model invocation permission.
 
 Exit: mandatory monitoring, alerts, and budget resources exist.
 
