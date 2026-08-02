@@ -427,7 +427,8 @@ free. Check current AWS pricing and the Billing console before deployment.
   removal is asynchronous; application reads hide logically expired records.
 - **Budget email absent:** confirm the SNS subscription.
 - **Apply rejects artifact:** run apply from the planned commit and matching
-  environment before the seven-day retention expires.
+  environment before the seven-day retention expires. The reviewed-plan artifact
+  must contain `.terraform.lock.hcl`; its checksum is verified before initialization.
 - **Destroy cannot empty buckets:** set `force_destroy_buckets=true` in a reviewed
   plan first, or remove retained object versions through an explicitly approved
   cleanup process.
