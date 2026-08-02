@@ -8,6 +8,11 @@ output "cloudfront_domain_name" {
   value       = aws_cloudfront_distribution.frontend.domain_name
 }
 
+output "frontend_url" {
+  description = "HTTPS URL for the deployed browser application."
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+}
+
 output "knowledge_base_id" {
   value = aws_bedrockagent_knowledge_base.this.id
 }

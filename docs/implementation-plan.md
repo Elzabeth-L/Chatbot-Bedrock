@@ -95,6 +95,9 @@ Exit: CloudFront serves the application and calls only the deployed API.
 - Add an optional email subscription and document confirmation.
 - Review all policies for narrow actions/resources and annotate unavoidable
   resource wildcards.
+- Grant the chat Lambda the explicit resource-scoped `bedrock:Retrieve` permission
+  required by the retrieval phase underlying `RetrieveAndGenerate`, while retaining
+  the separate generation-model invocation permission.
 
 Exit: mandatory monitoring, alerts, and budget resources exist.
 
@@ -104,7 +107,8 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
   - Application CI reports every required check on every PR, but runs tests, SAST,
     SCA, SonarCloud, and Snyk only when application, test, dependency, or scan
     configuration paths change. On `main`, trigger it only for those relevant paths
-    (with manual dispatch still available).
+    (with manual dispatch still available). Preserve both expanded CodeQL matrix
+    check names on infra-only PRs while skipping their checkout and analysis steps.
   - Terraform CI performs plans for every same-repository PR, automatic plans after relevant pushes to
     `main`, manual plans, and exact reviewed-plan promotion.
 - Keep Terraform workflow YAML declarative: move command logic into repository-local
@@ -145,6 +149,9 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
   directory, backend identity,
   variable identity, age, checksums, repository, event, and branch before applying
   the exact binary plan.
+- Print the complete HTTPS CloudFront frontend URL as a non-sensitive Terraform
+  output and in the successful promotion log/summary so operators do not confuse
+  it with the API Gateway invoke URL.
 - Add a main-branch-only, explicitly selected two-stage destroy-plan/destroy-apply
   process.
 - Refuse fork-originated plan promotion.

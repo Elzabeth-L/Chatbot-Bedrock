@@ -238,9 +238,15 @@ runs:
     - name: Record promotion result
       if: inputs.mode == 'apply'
       shell: bash
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
       run: |
+        frontend_url="$(terraform -chdir="${WORKING_DIRECTORY}" output -raw frontend_url)"
+        echo "Frontend URL: ${frontend_url}"
         {
           echo "## Terraform promotion"
           echo
           echo "The exact reviewed apply plan completed successfully."
+          echo
+          echo "Frontend URL: ${frontend_url}"
         } >> "${GITHUB_STEP_SUMMARY}"
