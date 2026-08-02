@@ -117,14 +117,17 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
   immutable subject format applies.
 - Produce a binary plan, readable summary, lockfile, and immutable metadata with
   SHA-256 checksums.
-- Add a main-branch-only manual apply path with exact typed confirmation that
+- Present one clear manual operation selector for change plan, reviewed apply,
+  destruction plan, or reviewed destruction apply. Treat the explicit destructive
+  selection as confirmation and keep apply operations restricted to `main`.
+- Add a main-branch-only manual apply path that
   automatically selects the newest successful manual or main-push plan artifact
   for the exact commit and requested mode, and verifies commit, versions, working
   directory, backend identity,
   variable identity, age, checksums, repository, event, and branch before applying
   the exact binary plan.
-- Add a main-branch-only, explicitly confirmed two-stage
-  destroy-plan/destroy-apply process.
+- Add a main-branch-only, explicitly selected two-stage destroy-plan/destroy-apply
+  process.
 - Refuse fork-originated plan promotion.
 
 Exit: apply never substitutes a freshly generated plan for the reviewed artifact.

@@ -298,7 +298,7 @@ branch refs. Without GitHub Environments, the deployment role trusts only
 `repo:OWNER@OWNER-ID/REPOSITORY@REPOSITORY-ID:ref:refs/heads/main`. GitHub
 repositories created after 2026-07-15 use this immutable ID-bearing subject format
 by default. Protect `main` with required pull-request reviews and passing checks;
-apply/destroy additionally require an exact typed confirmation. The workflow
+apply/destroy additionally require an explicit reviewed-operation selection. The workflow
 automatically selects the newest successful unexpired manual or `main`-push plan
 artifact for the exact commit and requested mode.
 
@@ -316,6 +316,10 @@ source run/event/repository/ref, Terraform and runner versions, working director
 backend identity, tfvars identity, timestamp, lockfile checksum, and plan checksum.
 Artifacts are retained for seven days.
 
+In GitHub's manual-run form, **Use workflow from** is the built-in branch selector.
+Choose `main` for either reviewed apply operation. The single **Terraform operation**
+field selects change plan, reviewed apply, destruction plan, or reviewed destruction.
+
 PR plan artifacts are reviewable but normally cannot be promoted after merge because
 the merge commit SHA differs. A relevant merge to `main` automatically runs a new
 plan on the final merge commit; that exact artifact is promotable. A manual `plan`
@@ -325,8 +329,8 @@ artifact for the same commit. Apply never silently replans.
 To apply:
 
 1. Review the PR plan, merge, and review the automatic plan on the final merge commit.
-2. Run the workflow from `main` at that exact commit with `action=apply`.
-3. Enter exact confirmation `apply`; the matching plan is selected automatically.
+2. Select `main` under **Use workflow from**.
+3. Choose **Apply reviewed changes**; the matching plan is selected automatically.
 
 The job downloads that run’s artifact and rejects a checksum, commit, version,
 provider lock, path, backend, variable, age, repository, source-run, runner, or trust
@@ -335,10 +339,10 @@ Terraform binary plans are not portable; all checks intentionally fail closed.
 
 To destroy:
 
-1. Dispatch `action=destroy`, `destroy_phase=plan`.
+1. From `main`, choose **Plan destruction**.
 2. Review the exact destroy-plan artifact.
-3. Dispatch from the same commit with `action=destroy`, `destroy_phase=apply`, the
-   exact confirmation `destroy`; the matching destroy plan is selected automatically.
+3. From the same `main` commit, choose **Apply reviewed destruction**; the matching
+   destroy plan is selected automatically.
 
 If an artifact expires or its commit is no longer the deployment target, generate
 and review a new plan. Never promote an artifact from a fork.
