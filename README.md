@@ -51,8 +51,9 @@ assistant messages receive a configurable TTL.
 `GET /sessions/{sessionId}/messages` restores unexpired history in chronological
 order. Missing, unknown, or expired session IDs safely produce an empty list. “New
 chat” creates and activates a new UUID without deleting any other session. The
-browser keeps a local index of up to 25 session IDs, titles, and update timestamps so
-the user can switch between chats; message content remains in DynamoDB.
+browser keeps a local index of up to 25 session IDs, prompt-derived titles, and
+update timestamps so the user can switch between chats from a persistent desktop
+sidebar or an accessible mobile drawer; message content remains in DynamoDB.
 
 S3 sends create/update/delete notifications only for
 `knowledge-base/documents/` to SQS. A 60-second Lambda batch window coalesces bursts,
