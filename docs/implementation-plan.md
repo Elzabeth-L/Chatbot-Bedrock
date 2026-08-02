@@ -84,10 +84,15 @@ Exit: chat/history routes and eventual document synchronization are wired.
 - Build plain HTML/CSS/JavaScript supporting a browser-local session registry,
   selectable prior conversations, history restoration from DynamoDB, a new UUID on
   every New Chat action, loading/error states, and citation labels/excerpts.
+- Present that registry as a compact persistent desktop sidebar with prompt-derived
+  conversation titles, clear active/hover states, a centered reading column, and an
+  accessible off-canvas sidebar on narrow screens.
 - Keep session message content in DynamoDB; store only session IDs, display titles,
   and update timestamps in browser local storage. Treat the browser registry as a
   convenience index rather than cross-device identity or authorization.
 - Render the deployed API URL from a Terraform template; never place secrets in JS.
+- Publish the redesigned stylesheet under a new non-cached object key so CloudFront
+  cannot combine a newly deployed HTML shell with a stale pre-sidebar stylesheet.
 - Create a separate private encrypted S3 bucket, CloudFront OAC, HTTPS redirect,
   response security headers, Price Class 100, and restricted bucket policy.
 

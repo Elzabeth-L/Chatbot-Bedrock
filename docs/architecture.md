@@ -47,7 +47,9 @@ unauthenticated HTTP API only.
 Unknown or expired sessions return an empty message list, not an error. DynamoDB TTL
 deletion is asynchronous, so reads also exclude records whose `expires_at` is in the
 past. New Chat creates and activates a new browser UUID; selecting a prior indexed
-session restores that partition, and no action deletes another partition.
+session restores that partition, and no action deletes another partition. The first
+user question supplies the local display title. History is presented as a persistent
+desktop sidebar and becomes an off-canvas drawer on narrow screens.
 
 Table design:
 

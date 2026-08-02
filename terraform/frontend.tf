@@ -162,6 +162,18 @@ resource "aws_s3_object" "frontend_styles" {
   server_side_encryption = "AES256"
 }
 
+# Use a versioned object name for the redesigned shell. Keeping the former object
+# avoids a destructive S3 replacement while this release clears cached clients.
+resource "aws_s3_object" "frontend_chat_styles" {
+  bucket                 = aws_s3_bucket.frontend.id
+  key                    = "chat.css"
+  source                 = "${path.module}/../frontend/styles.css"
+  etag                   = filemd5("${path.module}/../frontend/styles.css")
+  content_type           = "text/css; charset=utf-8"
+  cache_control          = "no-cache"
+  server_side_encryption = "AES256"
+}
+
 resource "aws_s3_object" "frontend_app" {
   bucket                 = aws_s3_bucket.frontend.id
   key                    = "app.js"
