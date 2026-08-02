@@ -1,8 +1,9 @@
 # Terraform backend bootstrap
 
 This Terraform root is run locally and is not called by either GitHub Actions
-workflow. It owns the S3 bucket used by the application Terraform backend and the
-trust configuration of the two repository-scoped GitHub OIDC roles.
+workflow. It owns the S3 bucket used by the application Terraform backend plus the
+trust configuration and supplemental permissions of the two repository-scoped
+GitHub OIDC roles.
 Bootstrap state remains local and gitignored because the locally installed
 Terraform 1.12.2 S3 backend cannot consume the newer `aws login` credential source.
 The resources can be safely re-imported if that local state is lost. The application

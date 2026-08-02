@@ -28,7 +28,12 @@ data "aws_iam_policy_document" "vector_bucket" {
     resources = [aws_s3vectors_index.knowledge_base.index_arn]
     principals {
       type        = "AWS"
-      identifiers = [aws_iam_role.knowledge_base.arn]
+      identifiers = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    condition {
+      test     = "ArnEquals"
+      variable = "aws:PrincipalArn"
+      values   = [aws_iam_role.knowledge_base.arn]
     }
   }
 }
@@ -36,6 +41,7 @@ data "aws_iam_policy_document" "vector_bucket" {
 resource "aws_s3vectors_vector_bucket_policy" "knowledge_base" {
   vector_bucket_arn = aws_s3vectors_vector_bucket.knowledge_base.vector_bucket_arn
   policy            = data.aws_iam_policy_document.vector_bucket.json
+  depends_on        = [aws_iam_role_policy.knowledge_base]
 }
 
 resource "aws_bedrockagent_knowledge_base" "this" {
