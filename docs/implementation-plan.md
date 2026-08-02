@@ -136,6 +136,9 @@ Exit: apply never substitutes a freshly generated plan for the reviewed artifact
 - Run Ruff and pytest with coverage.
 - Run CodeQL SAST for Python and JavaScript, Snyk Open Source SCA and Snyk Code
   SAST, plus SonarCloud analysis and its quality gate.
+- Keep the plain browser frontend in SonarCloud static analysis, but exclude it from
+  coverage calculations until a JavaScript coverage harness exists; enforce imported
+  pytest coverage for the Python Lambda code.
 - Run SonarCloud at internal PR, manual, and main-push promotion points instead of
   duplicating unsupported feature-branch analysis.
 - Select the intended Snyk organization explicitly through the non-sensitive
