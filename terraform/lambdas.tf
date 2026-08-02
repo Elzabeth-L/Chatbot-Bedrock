@@ -92,15 +92,14 @@ resource "aws_s3_bucket_notification" "documents" {
 }
 
 resource "aws_lambda_function" "ingestion" {
-  function_name                  = "${local.name_prefix}-ingestion"
-  role                           = aws_iam_role.ingestion.arn
-  runtime                        = "python3.13"
-  handler                        = "handler.handler"
-  filename                       = data.archive_file.ingestion.output_path
-  source_code_hash               = data.archive_file.ingestion.output_base64sha256
-  memory_size                    = 256
-  timeout                        = 60
-  reserved_concurrent_executions = 1
+  function_name    = "${local.name_prefix}-ingestion"
+  role             = aws_iam_role.ingestion.arn
+  runtime          = "python3.13"
+  handler          = "handler.handler"
+  filename         = data.archive_file.ingestion.output_path
+  source_code_hash = data.archive_file.ingestion.output_base64sha256
+  memory_size      = 256
+  timeout          = 60
 
   environment {
     variables = {

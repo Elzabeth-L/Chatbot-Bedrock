@@ -68,7 +68,9 @@ Exit: resource graph supports first deployment and initial ingestion.
   with `expires_at` TTL and point-in-time recovery disabled by default for cost.
 - Package and deploy each Lambda with a separate execution role and log group.
 - Connect S3 object create/delete events for the intended prefix to SQS, configure a
-  batching window, partial batch failure, retry delay, and DLQ.
+  batching window, partial batch failure, retry delay, and DLQ. Use account-level
+  unreserved Lambda concurrency so deployment also works in new or quota-restricted
+  AWS accounts where a reservation would violate Lambda's minimum unreserved pool.
 - Create API Gateway HTTP API routes, Lambda integration, access logs, CORS, and
   stage throttling.
 
@@ -99,9 +101,10 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 ### 7. CI/CD and artifact promotion
 
 - Maintain exactly two top-level workflows:
-  - Application CI performs tests, SAST, SCA, SonarCloud, and Snyk gates for the
-    Python Lambda source and static browser application on every PR and `main`
-    push, ensuring every required check reports a result.
+  - Application CI reports every required check on every PR, but runs tests, SAST,
+    SCA, SonarCloud, and Snyk only when application, test, dependency, or scan
+    configuration paths change. On `main`, trigger it only for those relevant paths
+    (with manual dispatch still available).
   - Terraform CI performs plans for every same-repository PR, automatic plans after relevant pushes to
     `main`, manual plans, and exact reviewed-plan promotion.
 - Keep Terraform workflow YAML declarative: move command logic into repository-local
