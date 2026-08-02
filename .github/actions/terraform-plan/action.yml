@@ -170,5 +170,6 @@ runs:
       with:
         name: ${{ steps.package.outputs.artifact_name }}
         path: plan-artifact/
+        include-hidden-files: true
         retention-days: 7
         if-no-files-found: error

@@ -117,6 +117,8 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
   immutable subject format applies.
 - Produce a binary plan, readable summary, lockfile, and immutable metadata with
   SHA-256 checksums.
+- Explicitly include Terraform's hidden `.terraform.lock.hcl` in the reviewed-plan
+  artifact so promotion can verify and restore the exact provider selections.
 - Present one clear manual operation selector for change plan, reviewed apply,
   destruction plan, or reviewed destruction apply. Treat the explicit destructive
   selection as confirmation and keep apply operations restricted to `main`.
