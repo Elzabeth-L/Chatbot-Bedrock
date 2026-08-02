@@ -122,7 +122,9 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 - Manage supplemental deployment-role permissions in the local bootstrap root,
   including exact backend state writes, Budget tagging, and DynamoDB TTL updates.
 - Recover a failed first apply declaratively by importing every resource confirmed
-  as created before the backend write failure; never rerun against an empty state.
+  as created before the backend write failure; exclude resources, such as the
+  failed Budget creation, that a recovery plan verifies do not exist; never rerun
+  against an empty state.
 - Avoid IAM propagation races in the S3 Vectors bucket policy by using the account
   principal constrained to the exact Knowledge Base role through `aws:PrincipalArn`.
 - Present one clear manual operation selector for change plan, reviewed apply,

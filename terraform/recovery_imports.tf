@@ -165,8 +165,3 @@ import {
   to = aws_dynamodb_table.sessions
   id = "bedrock-rag-demo-demo-sessions"
 }
-
-import {
-  to = aws_budgets_budget.monthly
-  id = "${data.aws_caller_identity.current.account_id}:bedrock-rag-demo-demo-monthly-cost"
-}
