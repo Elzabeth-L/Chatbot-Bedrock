@@ -14,6 +14,12 @@ variable "state_bucket_name" {
   }
 }
 
+variable "state_key" {
+  description = "Exact S3 object key used by the application Terraform backend."
+  type        = string
+  default     = "bedrock-rag-demo/demo/terraform.tfstate"
+}
+
 variable "tags" {
   description = "Non-sensitive tags applied to the bootstrap bucket."
   type        = map(string)

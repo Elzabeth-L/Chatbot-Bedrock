@@ -119,6 +119,12 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
   SHA-256 checksums.
 - Explicitly include Terraform's hidden `.terraform.lock.hcl` in the reviewed-plan
   artifact so promotion can verify and restore the exact provider selections.
+- Manage supplemental deployment-role permissions in the local bootstrap root,
+  including exact backend state writes, Budget tagging, and DynamoDB TTL updates.
+- Recover a failed first apply declaratively by importing every resource confirmed
+  as created before the backend write failure; never rerun against an empty state.
+- Avoid IAM propagation races in the S3 Vectors bucket policy by using the account
+  principal constrained to the exact Knowledge Base role through `aws:PrincipalArn`.
 - Present one clear manual operation selector for change plan, reviewed apply,
   destruction plan, or reviewed destruction apply. Treat the explicit destructive
   selection as confirmation and keep apply operations restricted to `main`.
