@@ -54,7 +54,8 @@ chat” creates a new UUID without deleting any other session.
 
 S3 sends create/update/delete notifications only for
 `knowledge-base/documents/` to SQS. A 60-second Lambda batch window coalesces bursts,
-reserved concurrency is one, and the handler starts one incremental ingestion job.
+and the handler starts one incremental ingestion job. The function uses the account's
+unreserved concurrency pool so it can deploy in AWS accounts with the minimum quota.
 If a job is active, the batch is retried. Repeated failures reach an encrypted DLQ
 and raise an alarm. Ingestion is eventually consistent; the Lambda logs the job ID
 but does not wait synchronously for indexing.
@@ -255,9 +256,11 @@ Application CI performs these source-level checks:
 - Snyk Open Source SCA and Snyk Code SAST
 - SonarCloud analysis and quality gate
 
-Application CI runs on every pull request, manual dispatch, and push to `main`, so
-all required branch-protection checks always report a result. SonarCloud analyzes
-internal pull requests and `main`, avoiding redundant feature-branch push analysis.
+Application CI reports all required branch-protection checks on every pull request,
+but its test, SAST, SCA, Snyk, and SonarCloud jobs run only when application, test,
+dependency, or scan-configuration paths change. Infra-only jobs are skipped
+successfully. On `main`, the workflow is triggered only by those relevant paths;
+manual dispatch always runs the complete application suite.
 
 There is no container registry path. Terraform creates ZIP archives from the Python
 Lambda directories and deploys them directly to Lambda. It uploads the plain HTML,
