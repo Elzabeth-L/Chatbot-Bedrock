@@ -100,7 +100,8 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
 
 - Maintain exactly two top-level workflows:
   - Application CI performs tests, SAST, SCA, SonarCloud, and Snyk gates for the
-    Python Lambda source and static browser application.
+    Python Lambda source and static browser application on every PR and `main`
+    push, ensuring every required check reports a result.
   - Terraform CI performs plans for every same-repository PR, automatic plans after relevant pushes to
     `main`, manual plans, and exact reviewed-plan promotion.
 - Keep Terraform workflow YAML declarative: move command logic into repository-local

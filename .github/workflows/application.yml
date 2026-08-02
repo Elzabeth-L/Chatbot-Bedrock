@@ -1,25 +1,9 @@
 name: Application CI
 
 on:
-  pull_request:
-    paths:
-      - "frontend/**"
-      - "lambdas/**"
-      - "tests/**"
-      - "requirements-dev.txt"
-      - "pyproject.toml"
-      - "sonar-project.properties"
-      - ".github/workflows/application.yml"
+  pull_request: {}
   push:
-    branches: ["**"]
-    paths:
-      - "frontend/**"
-      - "lambdas/**"
-      - "tests/**"
-      - "requirements-dev.txt"
-      - "pyproject.toml"
-      - "sonar-project.properties"
-      - ".github/workflows/application.yml"
+    branches: [main]
   workflow_dispatch:
 
 permissions:
