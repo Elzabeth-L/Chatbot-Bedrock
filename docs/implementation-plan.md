@@ -119,8 +119,13 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
   SHA-256 checksums.
 - Explicitly include Terraform's hidden `.terraform.lock.hcl` in the reviewed-plan
   artifact so promotion can verify and restore the exact provider selections.
+- Include the two Terraform-generated Lambda ZIP archives in the reviewed-plan
+  artifact, record their SHA-256 checksums in immutable metadata, and verify and
+  restore those exact archives before applying the binary plan.
 - Manage supplemental deployment-role permissions in the local bootstrap root,
-  including exact backend state writes, Budget tagging, and DynamoDB TTL updates.
+  including exact backend state writes, complete Budget tag reads/writes, DynamoDB
+  TTL updates, and the CloudWatch Logs delivery operations required when API
+  Gateway enables stage access logging.
 - Recover a failed first apply declaratively by importing every resource confirmed
   as created before the backend write failure; exclude resources, such as the
   failed Budget creation, that a recovery plan verifies do not exist; never rerun

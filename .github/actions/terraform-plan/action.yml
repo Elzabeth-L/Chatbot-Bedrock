@@ -123,17 +123,22 @@ runs:
         set -euo pipefail
         plan_file="${WORKING_DIRECTORY}/plan.tfplan"
         lock_file="${WORKING_DIRECTORY}/.terraform.lock.hcl"
+        chat_lambda_file="${WORKING_DIRECTORY}/chat-lambda.zip"
+        ingestion_lambda_file="${WORKING_DIRECTORY}/ingestion-lambda.zip"
         plan_sha="$(sha256sum "${plan_file}" | awk '{print $1}')"
         lock_sha="$(sha256sum "${lock_file}" | awk '{print $1}')"
+        chat_lambda_sha="$(sha256sum "${chat_lambda_file}" | awk '{print $1}')"
+        ingestion_lambda_sha="$(sha256sum "${ingestion_lambda_file}" | awk '{print $1}')"
         backend_identity="$(printf '%s/%s/%s' "${BACKEND_BUCKET}" "${BACKEND_KEY}" "${AWS_REGION_VALUE}" | sha256sum | awk '{print $1}')"
         tfvars_identity="$(sha256sum "${TFVARS_FILE}" | awk '{print $1}')"
         artifact_name="terraform-${PLAN_MODE}-${GITHUB_RUN_ID}-${GITHUB_SHA}"
         created_epoch="$(date -u +%s)"
 
         mkdir -p plan-artifact
-        cp "${plan_file}" "${WORKING_DIRECTORY}/plan.txt" "${lock_file}" plan-artifact/
+        cp "${plan_file}" "${WORKING_DIRECTORY}/plan.txt" "${lock_file}" \
+          "${chat_lambda_file}" "${ingestion_lambda_file}" plan-artifact/
         {
-          printf 'METADATA_VERSION=1\n'
+          printf 'METADATA_VERSION=2\n'
           printf 'PLAN_MODE=%s\n' "${PLAN_MODE}"
           printf 'PLAN_SHA256=%s\n' "${plan_sha}"
           printf 'COMMIT_SHA=%s\n' "${GITHUB_SHA}"
@@ -148,6 +153,8 @@ runs:
           printf 'RUNNER_ARCH=%s\n' "${RUNNER_ARCH}"
           printf 'WORKING_DIRECTORY=%s\n' "${WORKING_DIRECTORY}"
           printf 'LOCKFILE_SHA256=%s\n' "${lock_sha}"
+          printf 'CHAT_LAMBDA_SHA256=%s\n' "${chat_lambda_sha}"
+          printf 'INGESTION_LAMBDA_SHA256=%s\n' "${ingestion_lambda_sha}"
           printf 'BACKEND_IDENTITY=%s\n' "${backend_identity}"
           printf 'TFVARS_IDENTITY=%s\n' "${tfvars_identity}"
           printf 'CREATED_EPOCH=%s\n' "${created_epoch}"

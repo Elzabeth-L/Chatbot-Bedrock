@@ -113,12 +113,30 @@ data "aws_iam_policy_document" "github_deploy_supplemental" {
   statement {
     sid = "ManageApplicationBudgetTags"
     actions = [
+      "budgets:ListTagsForResource",
       "budgets:TagResource",
       "budgets:UntagResource",
     ]
     resources = [
       "arn:${data.aws_partition.current.partition}:budgets::${data.aws_caller_identity.current.account_id}:budget/bedrock-rag-demo-*",
     ]
+  }
+
+  # CloudWatch Logs delivery APIs used by API Gateway do not support
+  # resource-level IAM scoping.
+  statement {
+    sid = "ManageApiGatewayLogDelivery"
+    actions = [
+      "logs:CreateLogDelivery",
+      "logs:DeleteLogDelivery",
+      "logs:DescribeLogGroups",
+      "logs:DescribeResourcePolicies",
+      "logs:GetLogDelivery",
+      "logs:ListLogDeliveries",
+      "logs:PutResourcePolicy",
+      "logs:UpdateLogDelivery",
+    ]
+    resources = ["*"]
   }
 
   statement {

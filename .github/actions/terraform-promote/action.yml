@@ -172,8 +172,11 @@ runs:
         metadata="plan-artifact/plan-metadata.env"
         plan="plan-artifact/plan.tfplan"
         artifact_lock="plan-artifact/.terraform.lock.hcl"
+        chat_lambda="plan-artifact/chat-lambda.zip"
+        ingestion_lambda="plan-artifact/ingestion-lambda.zip"
         current_lock="${EXPECTED_WORKING_DIRECTORY}/.terraform.lock.hcl"
-        [[ -f "${metadata}" && -f "${plan}" && -f "${artifact_lock}" ]] || {
+        [[ -f "${metadata}" && -f "${plan}" && -f "${artifact_lock}" && \
+           -f "${chat_lambda}" && -f "${ingestion_lambda}" ]] || {
           echo "Artifact is incomplete." >&2
           exit 1
         }
@@ -189,7 +192,7 @@ runs:
           [[ "$1" == "$2" ]] || { echo "Artifact verification failed: $3" >&2; exit 1; }
         }
 
-        require_equal "$(value METADATA_VERSION)" "1" "metadata version"
+        require_equal "$(value METADATA_VERSION)" "2" "metadata version"
         require_equal "$(value ARTIFACT_TRUSTED)" "true" "trust marker"
         require_equal "$(value PLAN_MODE)" "${EXPECTED_MODE}" "plan mode"
         require_equal "$(value SOURCE_RUN_ID)" "${EXPECTED_SOURCE_RUN_ID}" "source run"
@@ -213,6 +216,11 @@ runs:
         require_equal "$(sha256sum "${plan}" | awk '{print $1}')" "$(value PLAN_SHA256)" "plan checksum"
         require_equal "$(sha256sum "${artifact_lock}" | awk '{print $1}')" "$(value LOCKFILE_SHA256)" "artifact lockfile"
         require_equal "$(sha256sum "${current_lock}" | awk '{print $1}')" "$(value LOCKFILE_SHA256)" "checked-out lockfile"
+        require_equal "$(sha256sum "${chat_lambda}" | awk '{print $1}')" "$(value CHAT_LAMBDA_SHA256)" "chat Lambda archive"
+        require_equal "$(sha256sum "${ingestion_lambda}" | awk '{print $1}')" "$(value INGESTION_LAMBDA_SHA256)" "ingestion Lambda archive"
+
+        cp "${chat_lambda}" "${EXPECTED_WORKING_DIRECTORY}/chat-lambda.zip"
+        cp "${ingestion_lambda}" "${EXPECTED_WORKING_DIRECTORY}/ingestion-lambda.zip"
 
         created_epoch="$(value CREATED_EPOCH)"
         [[ "${created_epoch}" =~ ^[0-9]+$ ]] || { echo "Invalid creation timestamp." >&2; exit 1; }
