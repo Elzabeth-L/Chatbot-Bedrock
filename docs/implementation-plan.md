@@ -104,7 +104,8 @@ Exit: mandatory monitoring, alerts, and budget resources exist.
   - Application CI reports every required check on every PR, but runs tests, SAST,
     SCA, SonarCloud, and Snyk only when application, test, dependency, or scan
     configuration paths change. On `main`, trigger it only for those relevant paths
-    (with manual dispatch still available).
+    (with manual dispatch still available). Preserve both expanded CodeQL matrix
+    check names on infra-only PRs while skipping their checkout and analysis steps.
   - Terraform CI performs plans for every same-repository PR, automatic plans after relevant pushes to
     `main`, manual plans, and exact reviewed-plan promotion.
 - Keep Terraform workflow YAML declarative: move command logic into repository-local
