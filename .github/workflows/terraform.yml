@@ -1,0 +1,182 @@
+name: Terraform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - "frontend/**"
+      - "lambdas/**"
+      - "documents/**"
+      - ".github/actions/terraform-*/**"
+      - ".github/workflows/terraform.yml"
+      - "backend.hcl.example"
+      - "terraform.tfvars.example"
+  pull_request:
+    paths:
+      - "terraform/**"
+      - "frontend/**"
+      - "lambdas/**"
+      - "documents/**"
+      - ".github/actions/terraform-*/**"
+      - ".github/workflows/terraform.yml"
+      - "backend.hcl.example"
+      - "terraform.tfvars.example"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Operation
+        required: true
+        type: choice
+        options: [plan, apply, destroy]
+      destroy_phase:
+        description: For destroy, generate or apply the reviewed destroy plan
+        required: false
+        default: plan
+        type: choice
+        options: [plan, apply]
+      confirmation:
+        description: Enter apply for apply, or destroy for destroy apply
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
+concurrency:
+  group: terraform-${{ github.ref }}-${{ inputs.action || 'plan' }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: ${{ vars.TERRAFORM_VERSION }}
+  TF_WORKING_DIR: terraform
+  TF_IN_AUTOMATION: "true"
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  TFVARS_FILE: ${{ vars.TFVARS_FILE }}
+
+jobs:
+  plan:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'plan') ||
+      (github.event_name == 'workflow_dispatch' &&
+       inputs.action == 'destroy' &&
+       inputs.destroy_phase == 'plan')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - id: plan
+        uses: ./.github/actions/terraform-plan
+        with:
+          working-directory: terraform
+          terraform-version: ${{ vars.TERRAFORM_VERSION }}
+          backend-bucket: ${{ vars.TF_BACKEND_BUCKET }}
+          backend-key: ${{ vars.TF_STATE_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+          tfvars-file: ${{ vars.TFVARS_FILE }}
+          mode: ${{ inputs.action == 'destroy' && 'destroy' || 'apply' }}
+          source-head-repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+
+      - if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: terraform-plan
+          path: terraform/plan-comment.txt
+
+  apply:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.action == 'apply' &&
+      inputs.confirmation == 'apply'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - uses: ./.github/actions/terraform-promote
+        with:
+          mode: apply
+          confirmation: ${{ inputs.confirmation }}
+          expected-commit-sha: ${{ github.sha }}
+          working-directory: terraform
+          terraform-version: ${{ vars.TERRAFORM_VERSION }}
+          backend-bucket: ${{ vars.TF_BACKEND_BUCKET }}
+          backend-key: ${{ vars.TF_STATE_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+          tfvars-file: ${{ vars.TFVARS_FILE }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  destroy_apply:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.action == 'destroy' &&
+      inputs.destroy_phase == 'apply' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.confirmation == 'destroy'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - uses: ./.github/actions/terraform-promote
+        with:
+          mode: destroy
+          confirmation: ${{ inputs.confirmation }}
+          expected-commit-sha: ${{ github.sha }}
+          working-directory: terraform
+          terraform-version: ${{ vars.TERRAFORM_VERSION }}
+          backend-bucket: ${{ vars.TF_BACKEND_BUCKET }}
+          backend-key: ${{ vars.TF_STATE_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+          tfvars-file: ${{ vars.TFVARS_FILE }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

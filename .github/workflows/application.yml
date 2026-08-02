@@ -1,0 +1,200 @@
+name: Application CI
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "lambdas/**"
+      - "tests/**"
+      - "requirements-dev.txt"
+      - "pyproject.toml"
+      - "sonar-project.properties"
+      - ".github/workflows/application.yml"
+  push:
+    branches: ["**"]
+    paths:
+      - "frontend/**"
+      - "lambdas/**"
+      - "tests/**"
+      - "requirements-dev.txt"
+      - "pyproject.toml"
+      - "sonar-project.properties"
+      - ".github/workflows/application.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests and lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install development dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Unit tests with coverage
+        run: pytest --cov=lambdas --cov-report=xml --cov-report=term-missing
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage-${{ github.sha }}
+          path: coverage.xml
+          retention-days: 7
+          if-no-files-found: error
+
+  codeql:
+    name: CodeQL SAST (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+
+  supply-chain:
+    name: Snyk SCA and SAST
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      SNYK_ORG: ${{ vars.SNYK_ORG }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Detect Snyk configuration
+        id: snyk_config
+        shell: bash
+        run: |
+          if [[ -n "${SNYK_TOKEN}" && -n "${SNYK_ORG}" ]]; then
+            echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "enabled=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::Snyk scans are skipped because SNYK_TOKEN or SNYK_ORG is not configured."
+          fi
+
+      - if: steps.snyk_config.outputs.enabled == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies for Snyk Open Source
+        if: steps.snyk_config.outputs.enabled == 'true'
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+
+      - id: snyk_setup
+        if: steps.snyk_config.outputs.enabled == 'true'
+        uses: snyk/actions/setup@v1.0.0
+
+      - name: Snyk Open Source SCA
+        if: steps.snyk_setup.outcome == 'success'
+        id: snyk_sca
+        run: >-
+          snyk test
+          --org="${SNYK_ORG}"
+          --file=requirements-dev.txt
+          --package-manager=pip
+          --severity-threshold=high
+          --sarif-file-output=snyk-open-source.sarif
+
+      - name: Upload Snyk SCA SARIF
+        if: always() && hashFiles('snyk-open-source.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: snyk-open-source.sarif
+          category: snyk-open-source
+
+      - name: Snyk Code SAST
+        if: always() && steps.snyk_setup.outcome == 'success'
+        run: >-
+          snyk code test
+          --org="${SNYK_ORG}"
+          --severity-threshold=high
+          --sarif-file-output=snyk-code.sarif
+
+      - name: Upload Snyk Code SARIF
+        if: always() && hashFiles('snyk-code.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: snyk-code.sarif
+          category: snyk-code
+
+  sonarcloud:
+    name: SonarCloud analysis
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-coverage-${{ github.sha }}
+
+      - name: Detect SonarCloud configuration
+        id: sonar_config
+        shell: bash
+        run: |
+          if [[ -n "${SONAR_TOKEN}" && -n "${SONAR_ORGANIZATION}" && -n "${SONAR_PROJECT_KEY}" ]]; then
+            echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "enabled=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::SonarCloud is skipped because its secret or variables are not configured."
+          fi
+
+      - if: steps.sonar_config.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@v7
+        with:
+          args: >-
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300

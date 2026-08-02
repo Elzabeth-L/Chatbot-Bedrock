@@ -1,0 +1,238 @@
+name: Verify and promote Terraform plan
+description: Verify provenance and apply an exact reviewed apply or destroy plan.
+
+inputs:
+  mode:
+    description: apply or destroy
+    required: true
+  confirmation:
+    description: Exact apply or destroy confirmation matching the promotion mode
+    required: false
+  expected-commit-sha:
+    description: Commit selected for this workflow dispatch
+    required: true
+  working-directory:
+    description: Terraform root directory
+    required: true
+  terraform-version:
+    description: Exact Terraform version
+    required: true
+  backend-bucket:
+    description: Existing remote-state bucket
+    required: true
+  backend-key:
+    description: Remote-state object key
+    required: true
+  aws-region:
+    description: Backend and provider Region
+    required: true
+  tfvars-file:
+    description: Repository-relative variable file
+    required: true
+  github-token:
+    description: Ephemeral GitHub token used to read source-run metadata/artifacts
+    required: true
+  max-artifact-age-seconds:
+    description: Maximum accepted plan age
+    required: false
+    default: "604800"
+
+runs:
+  using: composite
+  steps:
+    - name: Validate promotion inputs
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        CONFIRMATION: ${{ inputs.confirmation }}
+      run: |
+        set -euo pipefail
+        [[ "${MODE}" == "apply" || "${MODE}" == "destroy" ]] || {
+          echo "Promotion mode must be apply or destroy." >&2
+          exit 1
+        }
+        if [[ "${CONFIRMATION}" != "${MODE}" ]]; then
+          echo "Confirmation must exactly match promotion mode '${MODE}'." >&2
+          exit 1
+        fi
+
+    - name: Resolve and verify latest exact plan
+      id: source
+      uses: actions/github-script@v7
+      env:
+        EXPECTED_COMMIT_SHA: ${{ inputs.expected-commit-sha }}
+        EXPECTED_MODE: ${{ inputs.mode }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const {owner, repo} = context.repo;
+          const expectedName = (runId) =>
+            `terraform-${process.env.EXPECTED_MODE}-${runId}-${process.env.EXPECTED_COMMIT_SHA}`;
+          const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+            owner, repo, workflow_id: "terraform.yml",
+            status: "completed", per_page: 100
+          });
+          let selected;
+          for (const run of runs) {
+            if (run.id === context.runId || run.conclusion !== "success" ||
+                !["workflow_dispatch", "push"].includes(run.event) ||
+                run.head_sha !== process.env.EXPECTED_COMMIT_SHA ||
+                run.head_repository.full_name !== `${owner}/${repo}`) continue;
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              owner, repo, run_id: run.id, per_page: 100
+            });
+            const artifact = artifacts.find(item =>
+              !item.expired && item.name === expectedName(run.id));
+            if (artifact) { selected = {run, artifact}; break; }
+          }
+          if (!selected) throw new Error("No successful unexpired exact-commit plan artifact was found");
+          const run = selected.run;
+          if (run.path !== ".github/workflows/terraform.yml") throw new Error(`Unexpected workflow: ${run.path}`);
+          if (run.status !== "completed" || run.conclusion !== "success") throw new Error("Source run was not successful");
+          if (!["workflow_dispatch", "push"].includes(run.event)) {
+            throw new Error("Only manual or main-push plan runs are promotable");
+          }
+          if (run.head_sha !== process.env.EXPECTED_COMMIT_SHA) throw new Error("Source commit mismatch");
+          if (run.head_repository.full_name !== `${owner}/${repo}`) throw new Error("Fork artifacts are forbidden");
+          core.setOutput("run_id", String(run.id));
+
+    - name: Create partial backend configuration
+      shell: bash
+      env:
+        BACKEND_BUCKET: ${{ inputs.backend-bucket }}
+        BACKEND_KEY: ${{ inputs.backend-key }}
+        AWS_REGION_VALUE: ${{ inputs.aws-region }}
+      run: |
+        set -euo pipefail
+        test -n "${BACKEND_BUCKET}" || { echo "TF_BACKEND_BUCKET GitHub Variable is required." >&2; exit 1; }
+        test -n "${BACKEND_KEY}" || { echo "TF_STATE_KEY GitHub Variable is required." >&2; exit 1; }
+        test -n "${AWS_REGION_VALUE}" || { echo "AWS_REGION GitHub Variable is required." >&2; exit 1; }
+        umask 077
+        {
+          printf 'bucket       = "%s"\n' "${BACKEND_BUCKET}"
+          printf 'key          = "%s"\n' "${BACKEND_KEY}"
+          printf 'region       = "%s"\n' "${AWS_REGION_VALUE}"
+          printf 'encrypt      = true\n'
+          printf 'use_lockfile = true\n'
+        } > backend.hcl
+
+    - name: Download reviewed plan artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: terraform-${{ inputs.mode }}-${{ steps.source.outputs.run_id }}-${{ inputs.expected-commit-sha }}
+        path: plan-artifact
+        merge-multiple: true
+        run-id: ${{ steps.source.outputs.run_id }}
+        github-token: ${{ inputs.github-token }}
+
+    - name: Stage reviewed provider lock
+      shell: bash
+      env:
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+        metadata="plan-artifact/plan-metadata.env"
+        artifact_lock="plan-artifact/.terraform.lock.hcl"
+        [[ -f "${metadata}" && -f "${artifact_lock}" ]] || {
+          echo "Artifact lockfile or metadata is missing." >&2
+          exit 1
+        }
+        expected_lock_sha="$(sed -n 's/^LOCKFILE_SHA256=//p' "${metadata}")"
+        [[ "${expected_lock_sha}" =~ ^[a-f0-9]{64}$ ]] || {
+          echo "Artifact lock checksum metadata is invalid." >&2
+          exit 1
+        }
+        actual_lock_sha="$(sha256sum "${artifact_lock}" | awk '{print $1}')"
+        [[ "${actual_lock_sha}" == "${expected_lock_sha}" ]] || {
+          echo "Artifact lockfile checksum mismatch." >&2
+          exit 1
+        }
+        cp "${artifact_lock}" "${WORKING_DIRECTORY}/.terraform.lock.hcl"
+
+    - name: Initialize exact backend and reviewed providers
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: terraform init -input=false -backend-config=../backend.hcl -lockfile=readonly
+
+    - name: Verify immutable plan metadata
+      shell: bash
+      env:
+        EXPECTED_MODE: ${{ inputs.mode }}
+        EXPECTED_SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
+        EXPECTED_COMMIT_SHA: ${{ inputs.expected-commit-sha }}
+        EXPECTED_TERRAFORM_VERSION: ${{ inputs.terraform-version }}
+        EXPECTED_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        BACKEND_BUCKET: ${{ inputs.backend-bucket }}
+        BACKEND_KEY: ${{ inputs.backend-key }}
+        AWS_REGION_VALUE: ${{ inputs.aws-region }}
+        TFVARS_FILE: ${{ inputs.tfvars-file }}
+        MAX_ARTIFACT_AGE_SECONDS: ${{ inputs.max-artifact-age-seconds }}
+      run: |
+        set -euo pipefail
+        metadata="plan-artifact/plan-metadata.env"
+        plan="plan-artifact/plan.tfplan"
+        artifact_lock="plan-artifact/.terraform.lock.hcl"
+        current_lock="${EXPECTED_WORKING_DIRECTORY}/.terraform.lock.hcl"
+        [[ -f "${metadata}" && -f "${plan}" && -f "${artifact_lock}" ]] || {
+          echo "Artifact is incomplete." >&2
+          exit 1
+        }
+
+        value() {
+          local key="$1"
+          local count
+          count="$(grep -c "^${key}=" "${metadata}" || true)"
+          [[ "${count}" == "1" ]] || { echo "Invalid metadata key: ${key}" >&2; exit 1; }
+          sed -n "s/^${key}=//p" "${metadata}"
+        }
+        require_equal() {
+          [[ "$1" == "$2" ]] || { echo "Artifact verification failed: $3" >&2; exit 1; }
+        }
+
+        require_equal "$(value METADATA_VERSION)" "1" "metadata version"
+        require_equal "$(value ARTIFACT_TRUSTED)" "true" "trust marker"
+        require_equal "$(value PLAN_MODE)" "${EXPECTED_MODE}" "plan mode"
+        require_equal "$(value SOURCE_RUN_ID)" "${EXPECTED_SOURCE_RUN_ID}" "source run"
+        require_equal "$(value SOURCE_REPOSITORY)" "${GITHUB_REPOSITORY}" "repository"
+        require_equal "$(value SOURCE_HEAD_REPOSITORY)" "${GITHUB_REPOSITORY}" "fork source"
+        source_event="$(value SOURCE_EVENT)"
+        if [[ "${source_event}" != "workflow_dispatch" && "${source_event}" != "push" ]]; then
+          echo "::error::Invalid source event"
+          exit 1
+        fi
+        require_equal "$(value COMMIT_SHA)" "${EXPECTED_COMMIT_SHA}" "commit"
+        require_equal "$(value TERRAFORM_VERSION)" "${EXPECTED_TERRAFORM_VERSION}" "Terraform version"
+        require_equal "$(value RUNNER_OS)" "${RUNNER_OS}" "runner OS"
+        require_equal "$(value RUNNER_ARCH)" "${RUNNER_ARCH}" "runner architecture"
+        require_equal "$(value WORKING_DIRECTORY)" "${EXPECTED_WORKING_DIRECTORY}" "working directory"
+
+        backend_identity="$(printf '%s/%s/%s' "${BACKEND_BUCKET}" "${BACKEND_KEY}" "${AWS_REGION_VALUE}" | sha256sum | awk '{print $1}')"
+        tfvars_identity="$(sha256sum "${TFVARS_FILE}" | awk '{print $1}')"
+        require_equal "$(value BACKEND_IDENTITY)" "${backend_identity}" "backend identity"
+        require_equal "$(value TFVARS_IDENTITY)" "${tfvars_identity}" "variable-file identity"
+        require_equal "$(sha256sum "${plan}" | awk '{print $1}')" "$(value PLAN_SHA256)" "plan checksum"
+        require_equal "$(sha256sum "${artifact_lock}" | awk '{print $1}')" "$(value LOCKFILE_SHA256)" "artifact lockfile"
+        require_equal "$(sha256sum "${current_lock}" | awk '{print $1}')" "$(value LOCKFILE_SHA256)" "checked-out lockfile"
+
+        created_epoch="$(value CREATED_EPOCH)"
+        [[ "${created_epoch}" =~ ^[0-9]+$ ]] || { echo "Invalid creation timestamp." >&2; exit 1; }
+        age="$(( $(date -u +%s) - created_epoch ))"
+        (( age >= 0 && age <= MAX_ARTIFACT_AGE_SECONDS )) || {
+          echo "Artifact is expired or has a future timestamp." >&2
+          exit 1
+        }
+
+    - name: Apply exact reviewed plan
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: terraform apply -input=false -auto-approve ../plan-artifact/plan.tfplan
+
+    - name: Record promotion result
+      if: inputs.mode == 'apply'
+      shell: bash
+      run: |
+        {
+          echo "## Terraform promotion"
+          echo
+          echo "The exact reviewed apply plan completed successfully."
+        } >> "${GITHUB_STEP_SUMMARY}"
