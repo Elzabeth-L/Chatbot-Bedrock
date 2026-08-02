@@ -15,21 +15,16 @@ on:
   pull_request: {}
   workflow_dispatch:
     inputs:
-      action:
-        description: Operation
+      operation:
+        description: Operation (apply options require "Use workflow from" = main)
         required: true
+        default: Plan changes
         type: choice
-        options: [plan, apply, destroy]
-      destroy_phase:
-        description: For destroy, generate or apply the reviewed destroy plan
-        required: false
-        default: plan
-        type: choice
-        options: [plan, apply]
-      confirmation:
-        description: Enter apply for apply, or destroy for destroy apply
-        required: false
-        type: string
+        options:
+          - Plan changes
+          - Apply reviewed changes
+          - Plan destruction
+          - Apply reviewed destruction
 
 permissions:
   contents: read
@@ -37,7 +32,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: terraform-${{ github.ref }}-${{ inputs.action || 'plan' }}
+  group: terraform-${{ github.ref }}-${{ inputs.operation || 'automatic-plan' }}
   cancel-in-progress: false
 
 env:
@@ -53,10 +48,9 @@ jobs:
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository) ||
-      (github.event_name == 'workflow_dispatch' && inputs.action == 'plan') ||
       (github.event_name == 'workflow_dispatch' &&
-       inputs.action == 'destroy' &&
-       inputs.destroy_phase == 'plan')
+       (inputs.operation == 'Plan changes' ||
+        inputs.operation == 'Plan destruction'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -86,7 +80,7 @@ jobs:
           backend-key: ${{ vars.TF_STATE_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
           tfvars-file: ${{ vars.TFVARS_FILE }}
-          mode: ${{ inputs.action == 'destroy' && 'destroy' || 'apply' }}
+          mode: ${{ inputs.operation == 'Plan destruction' && 'destroy' || 'apply' }}
           source-head-repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
       - if: github.event_name == 'pull_request'
@@ -99,8 +93,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/main' &&
-      inputs.action == 'apply' &&
-      inputs.confirmation == 'apply'
+      inputs.operation == 'Apply reviewed changes'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -123,7 +116,7 @@ jobs:
       - uses: ./.github/actions/terraform-promote
         with:
           mode: apply
-          confirmation: ${{ inputs.confirmation }}
+          confirmation: apply
           expected-commit-sha: ${{ github.sha }}
           working-directory: terraform
           terraform-version: ${{ vars.TERRAFORM_VERSION }}
@@ -136,10 +129,8 @@ jobs:
   destroy_apply:
     if: >-
       github.event_name == 'workflow_dispatch' &&
-      inputs.action == 'destroy' &&
-      inputs.destroy_phase == 'apply' &&
       github.ref == 'refs/heads/main' &&
-      inputs.confirmation == 'destroy'
+      inputs.operation == 'Apply reviewed destruction'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -162,7 +153,7 @@ jobs:
       - uses: ./.github/actions/terraform-promote
         with:
           mode: destroy
-          confirmation: ${{ inputs.confirmation }}
+          confirmation: destroy
           expected-commit-sha: ${{ github.sha }}
           working-directory: terraform
           terraform-version: ${{ vars.TERRAFORM_VERSION }}
