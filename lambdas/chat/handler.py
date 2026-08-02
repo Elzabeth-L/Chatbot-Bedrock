@@ -37,6 +37,20 @@ INSUFFICIENT_ANSWER = (
     "I don't have enough information in the knowledge base to answer that question."
 )
 SESSION_ID_ERROR = "sessionId must be a valid UUID."
+GENERATION_PROMPT = f"""You are a documentation assistant.
+Answer using only facts explicitly present in the retrieved sources below.
+Do not add facts from general knowledge, assumptions, or the conversation history.
+If the sources do not fully support an answer, respond exactly with:
+{INSUFFICIENT_ANSWER}
+Do not append an explanation to that fallback response.
+
+Retrieved sources:
+$search_results$
+
+User request and bounded conversation context:
+$query$
+
+$output_format_instructions$"""
 
 
 def response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
@@ -170,6 +184,7 @@ def call_knowledge_base(history: list[dict[str, Any]], question: str) -> tuple[s
                     "vectorSearchConfiguration": {"numberOfResults": 5}
                 },
                 "generationConfiguration": {
+                    "promptTemplate": {"textPromptTemplate": GENERATION_PROMPT},
                     "inferenceConfig": {
                         "textInferenceConfig": {
                             "maxTokens": 600,
@@ -183,7 +198,11 @@ def call_knowledge_base(history: list[dict[str, Any]], question: str) -> tuple[s
     )
     citations = extract_citations(result)
     answer = str(result.get("output", {}).get("text", "")).strip()
-    if not citations or not answer:
+    if (
+        not citations
+        or not answer
+        or INSUFFICIENT_ANSWER.casefold() in answer.casefold()
+    ):
         return INSUFFICIENT_ANSWER, []
     return answer, citations
 
