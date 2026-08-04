@@ -8,8 +8,8 @@ exit $LASTEXITCODE
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $outputPath = Join-Path $projectRoot "docs\Chatbot-Bedrock-Solution-Design-Document.docx"
-$documentDate = "03 August 2026"
-$version = "1.0"
+$documentDate = "04 August 2026"
+$version = "1.1"
 
 $wdStyleNormal = -1
 $wdStyleHeading1 = -2
@@ -194,11 +194,9 @@ function Add-ResourceSection {
     Add-Table -Caption "$Title design summary" -Headers @("Design aspect", "Implementation") -Rows @(
         @("Terraform resources", $TerraformResources),
         @("Purpose and responsibilities", $Purpose),
-        @("Internal behavior and communication", $Operation),
+        @("Runtime behavior and dependencies", $Operation),
         @("Security", $Security),
-        @("Scalability and availability", $ScaleAvailability),
-        @("Failure and operations", $FailureOperations),
-        @("Alternatives and future improvement", $Alternatives)
+        @("Availability, failure, and operations", "$ScaleAvailability $FailureOperations")
     )
 }
 
@@ -279,8 +277,9 @@ try {
 
     Add-Heading 1 "Document Control"
     Add-Table -Caption "Revision history" -Headers @("Version", "Date", "Author", "Changes") -Rows @(
-        @("0.1", $documentDate, "Codex / Project Engineering", "Initial repository-derived draft"),
-        @("1.0", $documentDate, "Elzabeth-L", "Issued for technical review")
+        @("0.1", "03 August 2026", "Codex / Project Engineering", "Initial repository-derived draft"),
+        @("1.0", "03 August 2026", "Elzabeth-L", "Issued for technical review"),
+        @("1.1", $documentDate, "Elzabeth-L / Project Engineering", "Focused chatbot workflow, model, grounding, and session revision")
     )
     Add-Table -Caption "Approvals" -Headers @("Role", "Name", "Decision", "Date") -Rows @(
         @("Solution Architect", "To be assigned", "Pending", ""),
@@ -295,7 +294,7 @@ try {
         @("Security reviewers", "IAM, encryption, exposure, and software assurance review"),
         @("Project and delivery managers", "Scope, deployment, cost, risk, and roadmap oversight")
     )
-    Add-Callout -Title "Document basis" -Text "This document was generated from repository commit 8058cbd on branch feature/professional-chat-ui plus the subsequent documentation-plan update. Where organizational values were unavailable, the document states the omission or marks the value as inferred."
+    Add-Callout -Title "Document basis" -Text "This document was generated from the implementation on branch feature/professional-chat-ui. Where organizational values were unavailable, the document states the omission or marks the value as inferred."
     Add-PageBreak
 
     Add-Heading 1 "Table of Contents"
@@ -334,18 +333,7 @@ try {
         "GitHub pull-request validation and exact reviewed Terraform plan promotion."
     )
     Add-Heading 2 "2.3 Explicit Exclusions"
-    Add-Table -Caption "Technologies and capabilities not implemented" -Headers @("Item", "Status and rationale") -Rows @(
-        @("Docker / container images", "Not used. Lambda code is deployed as ZIP archives and the frontend as static files."),
-        @("Kubernetes / EKS", "Not used. There is no container orchestration requirement."),
-        @("ECS / Fargate / ECR", "Not used. Serverless Lambda removes always-on container capacity and registry operations."),
-        @("VPC, subnets, route tables, IGW, NAT Gateway", "Not created. Managed public AWS service endpoints are used; avoiding NAT removes fixed hourly cost."),
-        @("ALB / NLB", "Not used. API Gateway and CloudFront are the managed ingress services."),
-        @("RDS, PostgreSQL, MongoDB", "Not used. DynamoDB is sufficient for session-keyed access and S3 Vectors provides vector storage."),
-        @("Authentication and authorization", "Not implemented for end users. This is the most important production gap."),
-        @("AWS WAF and Bedrock Guardrails", "Not implemented to keep the demonstration small and low cost; recommended for production."),
-        @("Streaming responses", "Not implemented. The browser waits for a complete RetrieveAndGenerate response."),
-        @("Cross-device identity", "Not implemented. Session discovery remains in each browser's local storage.")
-    )
+    Add-Paragraph "The implemented runtime uses Lambda ZIP packages and static S3 assets. It does not use Docker, ECR, Kubernetes/EKS, ECS/Fargate, EC2, NGINX, a VPC, subnets, NAT Gateway, load balancers, RDS, PostgreSQL, or MongoDB. End-user authentication, WAF, Bedrock Guardrails, streaming responses, and cross-device session identity are also outside the current demonstration. Authentication and abuse protection are the most important production gaps."
     Add-Heading 2 "2.4 Major Features and Design Philosophy"
     Add-Paragraph "The design favors managed services, pay-for-use billing, private storage, least privilege, small bounded requests, and explicit operational evidence. Terraform remains a single application root because the resources are tightly related and there is no demonstrated module-reuse requirement. A separate bootstrap root owns only the state bucket and GitHub deployment identities, establishing a clean trust boundary."
     Add-Callout -Title "Assumption" -Text "The deployment account has Bedrock model access and compatible service quotas in us-east-1. Model and S3 Vectors availability must be revalidated before using another Region."
@@ -368,7 +356,13 @@ try {
         @("CloudWatch / SNS / Budgets", "7-day logs; five alarms; encrypted topic", "Observability and cost alerts", "AWS-native and low operations", "Third-party monitoring platform"),
         @("SonarCloud / Snyk / CodeQL / Trivy", "CI-managed", "SAST, SCA, quality, IaC scanning", "Layered software assurance", "Single-tool coverage")
     )
-    Add-Callout -Title "No container toolchain" -Text "Docker, NGINX, ECR, Kubernetes, ECS, and Fargate are absent by design. CI analyzes and Terraform deploys the exact Python and static assets used at runtime."
+    Add-Heading 2 "3.1 Bedrock Model Roles and Selection"
+    Add-Table -Caption "Bedrock models used by the chatbot" -Headers @("Model", "Identifier", "Responsibility") -Rows @(
+        @("Amazon Nova Micro", "amazon.nova-micro-v1:0", "Generates the final text answer from the retrieved document chunks and bounded conversation context."),
+        @("Amazon Titan Text Embeddings V2", "amazon.titan-embed-text-v2:0", "Converts document chunks and user questions into 256-dimension numeric vectors for semantic similarity search.")
+    )
+    Add-Paragraph "Nova Micro is the generation model. It was selected because the application is text-only, cost-sensitive, and interactive; Micro is the lowest-cost text-focused Nova option and provides lower latency than larger Nova models. Nova Lite or Pro may improve complex-answer quality but should be adopted only after a representative RAG evaluation proves that Micro is insufficient. The generation model remains configurable through Terraform and SSM."
+    Add-Paragraph "Titan V2 is not a chatbot model and does not write answers. It creates the vector representations used during document ingestion and question retrieval. The selected 256 dimensions reduce vector storage and query processing for the small corpus; changing dimensions requires rebuilding the compatible S3 Vectors index."
 
     Add-Heading 1 "4 High-Level Architecture"
     Add-Heading 2 "4.1 Runtime Request Flow"
@@ -445,6 +439,70 @@ try {
     Add-Paragraph "DynamoDB is the system of record for message content during the configured TTL window. The browser caches only navigation metadata. CloudFront caches static assets; index, JavaScript, configuration, and the redesigned stylesheet use release-safe cache policies. The asynchronous ingestion path is S3 to SQS to Lambda to Bedrock. There is no application-level response cache, WebSocket, worker server, or scheduled job."
     Add-Heading 2 "7.5 Authentication and Authorization"
     Add-Paragraph "The public HTTP API has no user authentication or authorization. A UUID prevents accidental key collisions but is not a credential. Runtime AWS authorization is enforced through IAM service roles. This distinction is material: end-user data isolation and access control are not provided."
+    Add-Heading 2 "7.6 Frontend Delivery and Lambda Invocation"
+    Add-Paragraph "The browser first opens the CloudFront URL over HTTPS. CloudFront terminates TLS with the AWS-managed certificate for its default cloudfront.net domain, signs its origin request with Origin Access Control, and reads index.html, chat.css, app.js, and config.js from the private frontend S3 bucket. config.js contains the public API Gateway endpoint. The browser then calls API Gateway directly over a separate HTTPS connection; CloudFront does not proxy the application API in the current design. API Gateway also uses an AWS-managed certificate for its default execute-api.amazonaws.com endpoint."
+    Add-Paragraph "API Gateway invocation is a managed function call, not code injection. For POST /chat, API Gateway converts the HTTP method, route, body, and request metadata into an AWS_PROXY payload-format 2.0 JSON event and asks the Lambda service to execute the deployed handler.py handler function. Lambda starts or reuses an isolated Python 3.13 execution environment, passes the event to handler(event, context), waits for its structured response, and returns the status, headers, and JSON body through API Gateway to the browser."
+    Add-Paragraph "The Lambda ZIP is a deployment package, not a per-request data source. During terraform plan/apply, the archive provider packages lambdas/chat into chat-lambda.zip and Terraform supplies it to the Lambda service. AWS stores and prepares that code when the function version is deployed. Requests execute the prepared handler; neither API Gateway nor the browser downloads or opens the ZIP for each question. The ingestion Lambda is packaged and deployed independently in the same way."
+    Add-Table -Caption "API Gateway to Lambda event interpretation" -Headers @("HTTP concept", "Lambda event representation", "Handler use") -Rows @(
+        @("POST /chat", "routeKey", "Selects chat-request logic"),
+        @("JSON request body", "body string", "Parsed and validated as sessionId plus message"),
+        @("GET /sessions/{sessionId}/messages", "routeKey and pathParameters.sessionId", "Selects and identifies the history query"),
+        @("Gateway request ID", "requestContext.requestId", "Included in structured diagnostic logs"),
+        @("Function response", "statusCode, headers, body", "Converted back into the HTTPS response")
+    )
+
+    Add-Heading 2 "7.7 Knowledge-Base Ingestion Workflow"
+    Add-NumberedSteps @(
+        "Terraform uploads repository-authored Markdown files only beneath knowledge-base/documents/ in the private source-document S3 bucket.",
+        "An object create, update, or delete causes S3 to send an event to the encrypted standard SQS ingestion queue. SQS provides durable buffering and at-least-once delivery.",
+        "The Lambda event-source mapping groups up to 100 messages for up to 60 seconds and invokes the ingestion Lambda. This coalesces document bursts into one synchronization request.",
+        "The ingestion Lambda lists recent Bedrock ingestion jobs. If a job is STARTING, IN_PROGRESS, or STOPPING, it returns those SQS records as batch failures so they are retried after the visibility delay.",
+        "When no job is active, the function calculates a deterministic client token from the sorted SQS message IDs and calls Bedrock StartIngestionJob. This makes an at-least-once retry idempotent.",
+        "Bedrock reads the approved S3 prefix, divides the documents into chunks of at most 500 tokens with 15 percent overlap, and invokes Titan Text Embeddings V2 for each chunk.",
+        "Titan returns a 256-value FLOAT32 embedding. Bedrock stores that vector, its source association, and permitted metadata in the technical-documents S3 Vectors index, which uses cosine distance.",
+        "The starter Lambda logs the job identifier but does not wait for completion. Ingestion is eventually consistent; repeated start failures move events to the 14-day DLQ after eight receives and trigger alarms."
+    )
+    Add-Callout -Title "Storage distinction" -Text "The source-document S3 bucket stores the readable Markdown files. S3 Vectors stores mathematical embeddings and source metadata. The separate frontend S3 bucket stores the website, while the bootstrap S3 bucket stores Terraform state. Only the source-document bucket and vector index participate in knowledge retrieval."
+
+    Add-Heading 2 "7.8 End-to-End Question-Answering Workflow"
+    Add-NumberedSteps @(
+        "The browser creates or restores a canonical UUID, then sends sessionId and a question of at most 2,000 characters to POST /chat.",
+        "API Gateway invokes the chat Lambda. The handler validates the JSON body, UUID, non-empty message, and input length before making any Bedrock request.",
+        "The Lambda queries the DynamoDB partition for that UUID and loads at most 12 unexpired messages in chronological order. DynamoDB TTL defaults to 24 hours; application reads hide logically expired items before asynchronous physical deletion.",
+        "The Lambda formats those messages only as bounded conversational context so references such as 'it' can be resolved. Its instruction explicitly says that prior conversation is not a factual source.",
+        "The Lambda calls Bedrock Agent Runtime RetrieveAndGenerate with the exact Knowledge Base ID, Nova Micro model ARN, a strict custom prompt, and a retrieval request for five results.",
+        "Within the managed Knowledge Base, Titan V2 converts the new question into a 256-dimension query embedding. S3 Vectors compares it with indexed chunk vectors by cosine similarity and returns the five most semantically relevant chunks and source metadata.",
+        "Bedrock supplies the retrieved chunks, question, bounded history, grounding prompt, and output-format instructions to Nova Micro. Nova writes a response with a maximum of 600 output tokens, temperature 0.1, and topP 0.9.",
+        "Bedrock returns generated text plus retrieved references. The Lambda extracts at most five unique citations, keeps a source filename and up to 500 characters of excerpt, and does not expose private S3 URIs.",
+        "The Lambda accepts the answer only when it is non-empty, has citations, and does not contain the configured insufficiency response. Otherwise it returns the exact fallback and no citations.",
+        "The user question and accepted assistant response are written to DynamoDB with the same calculated expiry. API Gateway returns the JSON response and the browser renders the text and source cards."
+    )
+    Add-FigurePlaceholder -Title "Detailed RAG ingestion and answer lifecycle" -Content "INGESTION`nMarkdown in document S3 --> SQS --> ingestion Lambda --> Bedrock sync`n    --> 500-token chunks / 15% overlap --> Titan V2 embeddings`n    --> 256D FLOAT32 cosine index in S3 Vectors`n`nQUESTION`nBrowser --> API Gateway --> chat Lambda --> DynamoDB history (max 12)`n    --> Bedrock Knowledge Base --> Titan query embedding --> S3 Vectors top 5`n    --> retrieved chunks + strict prompt --> Nova Micro --> answer + citations`n    --> Lambda fail-closed checks --> DynamoDB TTL --> browser"
+
+    Add-Heading 2 "7.9 Hallucination-Reduction Controls"
+    Add-Paragraph "The application follows a retrieve-first, generate-second, fail-closed pattern. These controls materially reduce unsupported answers, but they do not make probabilistic generation mathematically incapable of hallucination."
+    Add-Table -Caption "Grounding and hallucination controls" -Headers @("Control", "Implementation", "Effect") -Rows @(
+        @("Retrieval before generation", "Bedrock retrieves five chunks from the approved S3 Vectors index before Nova is called.", "Provides document evidence instead of asking the model to answer from training knowledge alone."),
+        @("Strict generation prompt", "Nova is told to use only facts explicitly present in retrieved search results and to avoid general knowledge and assumptions.", "Directs generation toward the controlled corpus."),
+        @("History is context, not evidence", "The formatted prompt says conversation history may resolve references but must not be treated as a source.", "Prevents an earlier assistant answer from becoming self-reinforcing evidence."),
+        @("Exact insufficiency response", "If sources do not fully support an answer, Nova must return: I don't have enough information in the knowledge base to answer that question.", "Produces a predictable refusal instead of a speculative completion."),
+        @("Citation-required fail closed", "The Lambda replaces any answer without retrieved citations with the insufficiency response.", "Blocks uncited model output from reaching the user."),
+        @("Fallback detection", "If Nova includes the configured insufficiency phrase anywhere in its output, Lambda returns only the standard fallback and removes citations.", "Prevents a refusal followed by unsupported general advice."),
+        @("Low creativity", "temperature=0.1, topP=0.9, maxTokens=600.", "Reduces variation and unnecessary elaboration; it does not independently prove factual correctness."),
+        @("Bounded evidence and context", "Five retrieval results, 12 history messages, five returned citations, 2,000-character input.", "Limits irrelevant context, model work, and cost."),
+        @("Controlled corpus and IAM", "The Knowledge Base can read only knowledge-base/documents/ and operate one vector index.", "Prevents unrelated account objects from entering retrieval."),
+        @("Sanitized sources", "S3 citations expose a filename and short excerpt, not a private URI.", "Provides reviewable evidence without weakening S3 privacy.")
+    )
+
+    Add-Heading 2 "7.10 Residual Hallucination Risk and Stronger Assurance"
+    Add-Paragraph "A citation proves that retrieval returned a source; it does not prove that every generated statement is logically entailed by that source. Retrieval can select a related but incomplete chunk, Nova can misunderstand or combine passages incorrectly, and a citation can be relevant without supporting every sentence. The current implementation does not evaluate similarity-score thresholds, verify claims in a second pass, use Bedrock Guardrails contextual-grounding checks, rerank results, or run a formal RAG quality suite. Therefore the correct assurance statement is: the chatbot is constrained to retrieved knowledge-base evidence and rejects uncited or explicitly insufficient output, which reduces hallucination substantially but cannot guarantee zero hallucination."
+    Add-Bullets @(
+        "Create a representative evaluation set with expected answers, expected refusals, and required source documents.",
+        "Measure retrieval relevance, answer groundedness, citation correctness, refusal accuracy, latency, and cost before changing models.",
+        "Add Bedrock Guardrails contextual-grounding checks or a separate claim-verification pass for higher-assurance workloads.",
+        "Introduce reranking and an accepted relevance threshold so weak retrieval produces a refusal.",
+        "Use a response structure that maps individual factual claims to citation numbers and retain human review for consequential decisions."
+    )
 
     Add-Heading 1 "8 Infrastructure as Code"
     Add-Heading 2 "8.1 Terraform Architecture"

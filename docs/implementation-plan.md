@@ -223,6 +223,25 @@ Exit: definition-of-done checklist is traceable to code and test evidence.
 Exit: a validated enterprise-formatted `.docx` is available under `docs/` as the
 official architecture, implementation, deployment, and operations deliverable.
 
+#### Focused content revision
+
+- Expand the runtime narrative to explain browser-to-CloudFront delivery, the
+  browser's separate HTTPS API Gateway call, what Lambda invocation means, and why
+  the deployment ZIP is not downloaded on each request.
+- Document the complete ingestion and question-answering paths, including Titan
+  embeddings, 500-token/15%-overlap chunking, 256-dimension cosine vectors, top-five
+  retrieval, Nova Micro generation, DynamoDB history, and response persistence.
+- Explain every implemented grounding control and state honestly that citations and
+  low-temperature generation reduce but cannot guarantee elimination of model
+  hallucination; record the remaining verification gap and production improvements.
+- Remove duplicated prose, generic enterprise filler, and repetitive alternative or
+  future-improvement statements while retaining the required architecture, IaC,
+  CI/CD, security, deployment, operations, cost, limitations, and appendices.
+
+Exit: the Word deliverable prioritizes the actual chatbot workflow and is concise
+enough for engineers and reviewers to use without losing required implementation
+coverage.
+
 ## External values
 
 These do not block implementation. Examples will use placeholders:
