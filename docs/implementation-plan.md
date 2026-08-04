@@ -205,6 +205,43 @@ unused second delivery path.
 
 Exit: definition-of-done checklist is traceable to code and test evidence.
 
+### 9. Enterprise solution design document
+
+- Generate a formal Microsoft Word Solution Design Document from the implemented
+  repository rather than from assumptions, covering application, AWS resources,
+  Terraform, CI/CD, security, operations, deployment, cost, and maintenance.
+- Include document control, an automatic table of contents, numbered headings,
+  professional tables, headers/footers, page numbers, diagram placeholders or
+  repository-derived diagrams, appendices, glossary, and clearly identified
+  assumptions and non-implemented technologies.
+- Verify time-sensitive AWS pricing against primary AWS sources, state the pricing
+  date and estimation assumptions, and distinguish free-tier eligibility from
+  estimated development and production usage.
+- Validate the generated `.docx` package and inspect its extracted text/structure so
+  the document can be opened and maintained without referring to source code.
+
+Exit: a validated enterprise-formatted `.docx` is available under `docs/` as the
+official architecture, implementation, deployment, and operations deliverable.
+
+#### Focused content revision
+
+- Expand the runtime narrative to explain browser-to-CloudFront delivery, the
+  browser's separate HTTPS API Gateway call, what Lambda invocation means, and why
+  the deployment ZIP is not downloaded on each request.
+- Document the complete ingestion and question-answering paths, including Titan
+  embeddings, 500-token/15%-overlap chunking, 256-dimension cosine vectors, top-five
+  retrieval, Nova Micro generation, DynamoDB history, and response persistence.
+- Explain every implemented grounding control and state honestly that citations and
+  low-temperature generation reduce but cannot guarantee elimination of model
+  hallucination; record the remaining verification gap and production improvements.
+- Remove duplicated prose, generic enterprise filler, and repetitive alternative or
+  future-improvement statements while retaining the required architecture, IaC,
+  CI/CD, security, deployment, operations, cost, limitations, and appendices.
+
+Exit: the Word deliverable prioritizes the actual chatbot workflow and is concise
+enough for engineers and reviewers to use without losing required implementation
+coverage.
+
 ## External values
 
 These do not block implementation. Examples will use placeholders:
