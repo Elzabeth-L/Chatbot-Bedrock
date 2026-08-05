@@ -163,6 +163,22 @@ data "aws_iam_policy_document" "github_deploy_supplemental" {
       "arn:${data.aws_partition.current.partition}:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/bedrock-rag-demo-*",
     ]
   }
+
+  # The AWS provider checks for attached instance profiles before deleting an
+  # application IAM role, even though Lambda and Bedrock roles do not use one.
+  statement {
+    sid       = "ReadApplicationRoleInstanceProfiles"
+    actions   = ["iam:ListInstanceProfilesForRole"]
+    resources = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/bedrock-rag-demo-*"]
+  }
+
+  # Application bucket policies must be removed before Terraform can delete the
+  # private frontend and knowledge-document buckets.
+  statement {
+    sid       = "DeleteApplicationBucketPolicies"
+    actions   = ["s3:DeleteBucketPolicy"]
+    resources = ["arn:${data.aws_partition.current.partition}:s3:::bedrock-rag-demo-*"]
+  }
 }
 
 resource "aws_iam_role_policy" "github_deploy_supplemental" {

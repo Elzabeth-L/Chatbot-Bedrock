@@ -242,6 +242,21 @@ Exit: the Word deliverable prioritizes the actual chatbot workflow and is concis
 enough for engineers and reviewers to use without losing required implementation
 coverage.
 
+### 10. Partial-destroy recovery
+
+- Add only the deployment-role permissions proven missing by failed Terraform run
+  `30994467199`: `iam:ListInstanceProfilesForRole` for application IAM roles and
+  `s3:DeleteBucketPolicy` for application S3 buckets.
+- Validate and apply the bootstrap root locally so the persistent GitHub OIDC role
+  can complete deletion; do not destroy the bootstrap state bucket or OIDC roles.
+- Discard the previously reviewed destruction plan because it was partially applied.
+- Generate a fresh destruction plan against the updated remote state, promote that
+  exact artifact, and verify the application root reaches an empty state.
+
+Exit: the application infrastructure is destroyed through Terraform while the
+remote-state bucket and GitHub deployment identities remain available for recovery
+and future deployments.
+
 ## External values
 
 These do not block implementation. Examples will use placeholders:
